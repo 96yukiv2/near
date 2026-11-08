@@ -600,3 +600,91 @@ h1 em {
 .invite-link label {
   font-size: 11px;
 }
+.location-page {
+  min-height: 100vh;
+  background: #f4f7f0;
+}
+.location-header {
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 30px;
+  background: #fffefa;
+}
+.location-header nav {
+  display: flex;
+  gap: 20px;
+}
+.location-header nav a {
+  color: #6f8f79;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 700;
+}
+.location-content {
+  display: flex;
+  min-height: calc(100vh - 76px);
+}
+.location-panel {
+  width: 380px;
+  padding: 35px 28px;
+  background: #fffefa;
+}
+.location-panel h1 {
+  margin: 10px 0;
+  font-size: 23px;
+}
+.location-panel p {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #84978a;
+}
+.location-sharing {
+  padding: 16px;
+  border-radius: 14px;
+  background: #f3f7ef;
+}
+.location-sharing strong {
+  font-size: 13px;
+}
+.location-sharing button {
+  width: 100%;
+}
+.stop-button {
+  margin-top: 8px;
+  color: #956b5f;
+  background: #f8eae4;
+}
+.location-row {
+  display: grid;
+  gap: 5px;
+  padding: 11px 0;
+  border-bottom: 1px solid #f1f3ef;
+  font-size: 12px;
+}
+.location-row span,
+.location-row small {
+  font-size: 10px;
+  color: #95a69a;
+}
+.location-row span.old {
+  color: #bd8b4e;
+  font-weight: 700;
+}
+.location-map {
+  flex: 1;
+  min-height: 420px;
+  background: #e8eee5;
+}
+@media (max-width: 760px) {
+  .location-content {
+    flex-direction: column;
+  }
+  .location-panel {
+    width: 100%;
+  }
+  .location-map {
+    min-height: 55vh;
+  }
+}
