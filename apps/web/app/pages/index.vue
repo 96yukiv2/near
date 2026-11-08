@@ -54,7 +54,7 @@ onBeforeUnmount(() => map?.remove());
           ><span class="brand-icon">✳</span> near<span class="brand-dot"
             >.</span
           ></a
-        ><span class="preview-pill">プレビュー</span>
+        ><a class="preview-pill" href="/account">アカウント →</a>
       </div>
       <div class="intro">
         <div class="eyebrow">
