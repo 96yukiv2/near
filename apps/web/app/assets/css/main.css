@@ -554,3 +554,49 @@ h1 em {
   font-size: 11px;
   text-decoration: none;
 }
+.friends-wrap {
+  max-width: 560px;
+}
+.friend-section {
+  border-top: 1px solid #edf1ea;
+  margin-top: 24px;
+  padding-top: 18px;
+}
+.friend-section h2 {
+  font-size: 15px;
+  margin: 0 0 10px;
+}
+.friend-section h2 span {
+  color: #9bac9f;
+  font-size: 11px;
+}
+.friend-section p {
+  font-size: 12px;
+  color: #8a9b8f;
+  line-height: 1.7;
+}
+.relation-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 0;
+  font-size: 12px;
+}
+.relation-row button {
+  border: 0;
+  border-radius: 8px;
+  padding: 8px;
+  margin-left: 5px;
+  background: #f0f6ed;
+  color: #567d60;
+  font-size: 10px;
+}
+.invite-link {
+  margin-top: 12px;
+  display: grid;
+  gap: 7px;
+}
+.invite-link label {
+  font-size: 11px;
+}

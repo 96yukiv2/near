@@ -260,6 +260,7 @@ async function googleLogin() {
             </button>
           </div>
         </form>
+        <a v-if="session" class="back-link" href="/friends">友達を追加する →</a>
         <a class="back-link" href="/">← デモ地図に戻る</a>
       </section>
     </div>

@@ -12,7 +12,8 @@
     "format:check": "prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:profile-api": "node --test scripts/test-profile-api.mjs"
+    "test:profile-api": "node --test scripts/test-profile-api.mjs",
+    "test:friends-api": "node --test scripts/test-friends-api.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
