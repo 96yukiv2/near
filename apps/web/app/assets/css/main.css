@@ -519,3 +519,7 @@ h2 {
   font-size: 12px;
   font-weight: 700;
 }
+.sharing-badge.active {
+  color: #33764f;
+  background: #e8f7e9;
+}

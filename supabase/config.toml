@@ -38,5 +38,3 @@ secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 [functions.delete-account]
 verify_jwt = true
 
-[auth.web3.ethereum]
-enabled = true

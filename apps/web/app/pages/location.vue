@@ -164,7 +164,12 @@ onMounted(async () => {
     return;
   }
   if (!mapElement.value) return;
-  await locationMap.initialize(mapElement.value);
+  try {
+    await locationMap.initialize(mapElement.value);
+  } catch {
+    errorMessage.value =
+      "地図を表示できませんでした。共有の停止は引き続き操作できます。";
+  }
   if (disposed) return;
   const supabase = createClient(
     config.public.supabaseUrl,
@@ -214,7 +219,21 @@ onBeforeUnmount(() => {
           >.</span
         ></a
       >
-      <span class="header-caption">your people, closer ✳</span>
+      <span
+        v-if="session"
+        class="header-caption sharing-badge"
+        :class="{ active: sharing && !statusUncertain }"
+        aria-live="polite"
+      >
+        {{
+          statusUncertain
+            ? "共有状態を確認中"
+            : sharing
+              ? "● 位置を共有中"
+              : "○ 共有オフ"
+        }}
+      </span>
+      <span v-else class="header-caption">your people, closer ✳</span>
     </header>
     <section class="location-content">
       <div class="location-panel">
