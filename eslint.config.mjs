@@ -22,6 +22,8 @@ export default tseslint.config(
         ...globals.browser,
         ...globals.node,
         defineNuxtConfig: "readonly",
+        navigateTo: "readonly",
+        Deno: "readonly",
         useRuntimeConfig: "readonly",
       },
     },

@@ -11,6 +11,7 @@
     "@supabase/supabase-js": "^2.119.0",
     "maplibre-gl": "^6.17.0",
     "nuxt": "^4.6.4",
+    "viem": "2.57.16",
     "vue": "^3.5.22",
     "vue-router": "^5.4.0"
   },

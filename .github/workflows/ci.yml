@@ -39,3 +39,13 @@ jobs:
           npm run test:profile-api
           npm run test:friends-api
           npm run test:location-api
+          node scripts/probe-web3-replay.mjs
+          npx supabase functions serve delete-account > "$RUNNER_TEMP/near-edge.log" 2>&1 &
+          near_functions_pid=$!
+          trap 'kill "$near_functions_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS "$API_URL/functions/v1/delete-account" || true)
+            if [ "$status" = "200" ] || [ "$status" = "401" ]; then break; fi
+            sleep 2
+          done
+          npm run test:delete-account-api

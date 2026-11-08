@@ -14,7 +14,8 @@
     "test": "vitest run",
     "test:profile-api": "node --test scripts/test-profile-api.mjs",
     "test:friends-api": "node --test scripts/test-friends-api.mjs",
-    "test:location-api": "node --test scripts/test-location-api.mjs"
+    "test:location-api": "node --test scripts/test-location-api.mjs",
+    "test:delete-account-api": "node --test scripts/test-delete-account-api.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

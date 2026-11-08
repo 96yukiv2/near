@@ -134,6 +134,40 @@ async function signOut() {
     message.value = "ログアウトしました。";
   }
 }
+async function deleteAccount() {
+  if (!client.value || !session.value || busy.value) return;
+  const confirmation = window.prompt(
+    "アカウント、友達関係、位置情報を削除します。元には戻せません。続けるには「削除」と入力してください。",
+  );
+  if (confirmation !== "削除") return;
+  busy.value = true;
+  errorMessage.value = "";
+  message.value = "";
+  try {
+    const { error } = await client.value.functions.invoke("delete-account", {
+      body: {},
+    });
+    if (error) {
+      if (error.context instanceof Response && error.context.status === 403) {
+        errorMessage.value =
+          "安全のため、ログアウトして再ログインした後に削除してください。";
+      } else {
+        errorMessage.value =
+          "削除を完了できませんでした。通信を確認し、もう一度お試しください。";
+      }
+      return;
+    }
+    await client.value.auth.signOut({ scope: "local" });
+    session.value = null;
+    displayName.value = "";
+    message.value = "アカウントを削除しました。";
+  } catch {
+    errorMessage.value =
+      "削除の結果を確認できません。ログイン状態を確認してください。";
+  } finally {
+    busy.value = false;
+  }
+}
 async function googleLogin() {
   if (!client.value) return;
   const { error } = await client.value.auth.signInWithOAuth({
@@ -162,7 +196,7 @@ async function googleLogin() {
         <p v-if="message" class="account-alert" role="status">{{ message }}</p>
         <p v-if="!ready">読み込み中…</p>
         <template v-else-if="session && mode !== 'recovery'">
-          <p class="account-intro">{{ session.user.email }} でログイン中</p>
+          <p class="account-intro">ログイン中</p>
           <form @submit.prevent="saveProfile">
             <label for="display-name">表示名</label>
             <input
@@ -179,6 +213,15 @@ async function googleLogin() {
           <button class="link-button" type="button" @click="signOut">
             ログアウト
           </button>
+          <div class="account-danger">
+            <h2>アカウントの削除</h2>
+            <p>
+              アカウント、友達関係、保存された位置情報を削除します。削除後は元に戻せません。
+            </p>
+            <button type="button" :disabled="busy" @click="deleteAccount">
+              アカウントを削除
+            </button>
+          </div>
         </template>
         <form v-else @submit.prevent="submit">
           <template v-if="mode !== 'recovery'">
@@ -218,7 +261,10 @@ async function googleLogin() {
             }}
           </button>
           <button
-            v-if="mode === 'login' && config.public.googleAuthEnabled === true"
+            v-if="
+              mode === 'login' &&
+              String(config.public.googleAuthEnabled) === 'true'
+            "
             class="secondary-button"
             type="button"
             @click="googleLogin"
@@ -261,8 +307,9 @@ async function googleLogin() {
           </div>
         </form>
         <a v-if="session" class="back-link" href="/friends">友達を追加する →</a>
-        <a class="back-link" href="/">← デモ地図に戻る</a>
+        <a class="back-link" href="/">← マップに戻る</a>
       </section>
     </div>
+    <AppNav active="account" />
   </main>
 </template>
