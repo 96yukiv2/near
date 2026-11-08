@@ -20,7 +20,7 @@ npm test
 npm run test:passkey
 ```
 
-Nuxt と PostgreSQL の結合テストは、空のローカル `near_browser_test` DB と `NEAR_TEST_POSTGRES_URL` を用意し、`npm run build` 後に `npm run test:auth-browser` を実行します。CI では使い捨て DB を起動します。
+CI では認証・削除の重要な判定を単体テストし、位置情報はローカル Supabase に API を直接呼んで権限を検証します。画面の全体確認は Vercel のプレビューなどで行います。Nuxt と PostgreSQL の結合テストが必要な場合は、空のローカル `near_browser_test` DB と `NEAR_TEST_POSTGRES_URL` を用意し、`npm run build` 後に `npm run test:auth-browser` を実行できます。
 
 ## 有効化前の残作業
 

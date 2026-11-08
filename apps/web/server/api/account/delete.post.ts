@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { deleteNearAccount } from "../../utils/delete-near-account";
 import { getNearAuth } from "../../utils/get-near-auth";
+import { isRecentAuth } from "../../utils/near-auth-policy";
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event);
@@ -19,9 +20,10 @@ export default defineEventHandler(async (event) => {
   });
   const method = (session?.session as { nearAuthMethod?: string } | undefined)
     ?.nearAuthMethod;
-  const createdAt = session?.session.createdAt;
-  const age = createdAt ? Date.now() - new Date(createdAt).getTime() : Infinity;
-  if (!session?.user || method !== "passkey" || age < 0 || age > 5 * 60_000)
+  if (
+    !session?.user ||
+    !isRecentAuth(method, session.session.createdAt, "passkey")
+  )
     throw createError({
       statusCode: 403,
       statusMessage: "Recent passkey sign-in required",

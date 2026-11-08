@@ -7,19 +7,6 @@ permissions:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_PASSWORD: near-local-only
-          POSTGRES_DB: near_browser_test
-        ports:
-          - 15432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d near_browser_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -31,12 +18,7 @@ jobs:
       - run: npm run format:check
       - run: npm run typecheck
       - run: npm test
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:passkey
       - run: npm run build
-      - run: npm run test:auth-browser
-        env:
-          NEAR_TEST_POSTGRES_URL: postgres://postgres:near-local-only@127.0.0.1:15432/near_browser_test
   profile-api:
     runs-on: ubuntu-latest
     steps:

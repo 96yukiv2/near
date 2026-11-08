@@ -7,6 +7,7 @@ import {
   getSessionFromCtx,
 } from "better-auth/api";
 import { anonymous, emailOTP, jwt } from "better-auth/plugins";
+import { isRecentAuth, mayIssueAuthorization } from "./near-auth-policy.ts";
 
 /** Shared by the server and the isolated browser test. No secrets belong here. */
 export function createNearAuthOptions(settings: {
@@ -71,12 +72,13 @@ export function createNearAuthOptions(settings: {
           ctx.path === "/email-otp/change-email"
         ) {
           const current = await getSessionFromCtx(ctx);
-          const method = current?.session.nearAuthMethod;
-          const createdAt = current?.session.createdAt;
-          const age = createdAt
-            ? Date.now() - new Date(createdAt).getTime()
-            : Infinity;
-          if (method !== "passkey" || age < 0 || age > 5 * 60_000)
+          if (
+            !isRecentAuth(
+              current?.session.nearAuthMethod,
+              current?.session.createdAt,
+              "passkey",
+            )
+          )
             throw new APIError("FORBIDDEN", {
               message: "A recent passkey sign-in is required.",
             });
@@ -88,12 +90,12 @@ export function createNearAuthOptions(settings: {
           return;
         const session = await getSessionFromCtx(ctx);
         if (session && (await settings.hasPasskey(session.user.id))) {
-          const age =
-            Date.now() - new Date(session.session.createdAt).getTime();
           if (
-            session.session.nearAuthMethod !== "recovery" ||
-            age < 0 ||
-            age > 5 * 60_000
+            !isRecentAuth(
+              session.session.nearAuthMethod,
+              session.session.createdAt,
+              "recovery",
+            )
           )
             throw new APIError("FORBIDDEN", {
               message: "Additional passkeys require a separate verified flow.",
@@ -138,8 +140,10 @@ export function createNearAuthOptions(settings: {
         signup: {
           page: "/auth/setup",
           shouldRedirect: async ({ user, session }) =>
-            session.nearAuthMethod !== "passkey" ||
-            !(await settings.hasPasskey(user.id)),
+            !mayIssueAuthorization(
+              session.nearAuthMethod,
+              await settings.hasPasskey(user.id),
+            ),
         },
       }),
     ],
