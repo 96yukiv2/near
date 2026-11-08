@@ -46,8 +46,8 @@ jobs:
           trap 'code=$?; if [ "$code" -ne 0 ]; then cat "$RUNNER_TEMP/near-edge.log"; fi; kill "$near_functions_pid" 2>/dev/null || true' EXIT
           ready=false
           for attempt in $(seq 1 30); do
-            status=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS "$API_URL/functions/v1/delete-account" || true)
-            if [ "$status" = "200" ]; then ready=true; break; fi
+            status=$(curl -s -o /dev/null -w '%{http_code}' -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY" "$API_URL/functions/v1/delete-account" || true)
+            if [ "$status" = "405" ]; then ready=true; break; fi
             sleep 2
           done
           if [ "$ready" != "true" ]; then echo 'Edge Function did not become ready'; exit 1; fi
