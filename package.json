@@ -13,7 +13,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:profile-api": "node --test scripts/test-profile-api.mjs",
-    "test:friends-api": "node --test scripts/test-friends-api.mjs"
+    "test:friends-api": "node --test scripts/test-friends-api.mjs",
+    "test:location-api": "node --test scripts/test-location-api.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
