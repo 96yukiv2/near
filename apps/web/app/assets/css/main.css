@@ -453,3 +453,104 @@ h1 em {
     padding-top: 25px;
   }
 }
+.account-page {
+  min-height: 100vh;
+  padding: 50px 24px;
+  background: #f3f6ee;
+}
+.account-wrap {
+  max-width: 440px;
+  margin: auto;
+}
+.account-card {
+  background: #fffefa;
+  border-radius: 24px;
+  margin-top: 35px;
+  padding: 36px;
+  box-shadow: 0 15px 55px #49685412;
+}
+.account-card h1 {
+  margin: 12px 0 5px;
+}
+.account-intro {
+  color: #84978a;
+  font-size: 12px;
+  line-height: 1.8;
+  margin-bottom: 25px;
+}
+.account-card form {
+  display: grid;
+  gap: 10px;
+}
+.account-card label {
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 8px;
+}
+.account-card input {
+  width: 100%;
+  padding: 13px;
+  border: 1px solid #dce8db;
+  border-radius: 10px;
+  font: inherit;
+  color: #263b35;
+  background: white;
+}
+.account-card input:focus-visible {
+  outline: 2px solid #81b990;
+}
+.primary-button,
+.secondary-button {
+  padding: 13px;
+  border: 0;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 12px;
+  margin-top: 12px;
+}
+.primary-button {
+  background: #80b890;
+  color: white;
+}
+.primary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.secondary-button {
+  background: #f1f6ef;
+  color: #496951;
+  margin: 0;
+}
+.account-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+.account-links button,
+.link-button {
+  background: none;
+  border: 0;
+  color: #6b9b75;
+  font-size: 11px;
+  padding: 10px 0;
+}
+.account-alert {
+  border-radius: 10px;
+  padding: 12px;
+  background: #eef6eb;
+  color: #497954;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.account-alert.error {
+  background: #fff0eb;
+  color: #a65347;
+}
+.back-link {
+  display: inline-block;
+  margin-top: 25px;
+  color: #91a69a;
+  font-size: 11px;
+  text-decoration: none;
+}
