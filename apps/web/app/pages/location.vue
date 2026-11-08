@@ -139,6 +139,7 @@ async function sendPosition(action: "start" | "update", run: number) {
   } catch {
     if (run !== generation || !session.value || disposed) return false;
     if (action === "start" && requestSent) {
+      refreshSequence++;
       statusUncertain.value = true;
       errorMessage.value =
         "共有が開始されたか確認できません。通信を確認し、共有状態を確認するか停止してください。";
