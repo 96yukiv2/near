@@ -18,6 +18,8 @@ jobs:
       - run: npm run format:check
       - run: npm run typecheck
       - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:passkey
       - run: npm run build
   profile-api:
     runs-on: ubuntu-latest
