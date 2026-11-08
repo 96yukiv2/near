@@ -167,6 +167,28 @@ test("register and sign in with a passkey without a real email", async () => {
       return { sameUser: signedIn.data.user.id === id };
     }, created.id);
     assert.deepEqual(result, { sameUser: true });
+    const otherContext = await browser.newContext();
+    let otherId;
+    try {
+      const otherPage = await otherContext.newPage();
+      await otherPage.goto(origin);
+      await otherPage.addScriptTag({ content: script });
+      const otherUser = await otherPage.evaluate(() =>
+        window.nearAuth.signIn.anonymous(),
+      );
+      assert.equal(otherUser.error, null);
+      otherId = otherUser.data.user.id;
+      const otherAuthorization = await otherContext.request.get(authorizeUrl, {
+        maxRedirects: 0,
+      });
+      assert.equal(otherAuthorization.status(), 302);
+      assert.equal(
+        new URL(otherAuthorization.headers().location, origin).pathname,
+        "/setup",
+      );
+    } finally {
+      await otherContext.close();
+    }
     const authorized = await context.request.get(authorizeUrl, {
       maxRedirects: 0,
     });
@@ -202,8 +224,9 @@ test("register and sign in with a passkey without a real email", async () => {
     assert.equal(replay.status(), 400);
     await tokenClient.dispose();
     const users = database.prepare("SELECT email FROM user").all();
-    assert.equal(users.length, 1);
-    assert.match(users[0].email, /@anonymous\.placeholder\.invalid$/);
+    assert.equal(users.length, 2);
+    for (const user of users)
+      assert.match(user.email, /@anonymous\.placeholder\.invalid$/);
 
     // This mailbox exists only in memory; no actual email is sent.
     const recoveryEmail = "near-test@recovery.invalid";
@@ -259,14 +282,15 @@ test("register and sign in with a passkey without a real email", async () => {
       return { error: deleted.error?.message ?? null };
     });
     assert.deepEqual(deletion, { error: null });
-    assert.equal(database.prepare("SELECT count(*) AS n FROM user").get().n, 0);
+    assert.equal(database.prepare("SELECT count(*) AS n FROM user").get().n, 1);
+    assert.equal(database.prepare("SELECT id FROM user").get().id, otherId);
     assert.equal(
       database.prepare("SELECT count(*) AS n FROM passkey").get().n,
       0,
     );
     assert.equal(
       database.prepare("SELECT count(*) AS n FROM session").get().n,
-      0,
+      1,
     );
   } finally {
     await context.close();
