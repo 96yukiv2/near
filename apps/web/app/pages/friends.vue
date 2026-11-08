@@ -66,7 +66,10 @@ onMounted(() => {
   const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => {
     session.value = next;
     if (next) setTimeout(() => void refresh(), 0);
-    else data.value = { friends: [], incoming: [], outgoing: [], blocked: [] };
+    else {
+      inviteLink.value = "";
+      data.value = { friends: [], incoming: [], outgoing: [], blocked: [] };
+    }
   });
   unsubscribe = () => listener.subscription.unsubscribe();
   ready.value = true;
