@@ -8,13 +8,20 @@
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
+    "@better-auth/oauth-provider": "1.7.18",
+    "@better-auth/passkey": "1.7.18",
     "@supabase/supabase-js": "^2.119.0",
+    "better-auth": "1.7.18",
     "maplibre-gl": "^6.17.0",
+    "nodemailer": "10.4.0",
     "nuxt": "^4.6.4",
+    "pg": "8.23.1",
     "vue": "^3.5.22",
     "vue-router": "^5.4.0"
   },
   "devDependencies": {
+    "@types/nodemailer": "8.0.2",
+    "@types/pg": "8.23.1",
     "vue-tsc": "^3.1.1"
   },
   "engines": {

@@ -13,6 +13,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:passkey": "node --test tests/passkey/passkey.node.mjs",
+    "test:auth-browser": "node --test tests/passkey/nuxt.node.mjs",
     "test:profile-api": "node --test scripts/test-profile-api.mjs",
     "test:friends-api": "node --test scripts/test-friends-api.mjs",
     "test:location-api": "node --test scripts/test-location-api.mjs",

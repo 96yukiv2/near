@@ -3,15 +3,13 @@ import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { DatabaseSync } from "node:sqlite";
 import { after, before, test } from "node:test";
-import { passkey } from "@better-auth/passkey";
-import { oauthProvider } from "@better-auth/oauth-provider";
 import { betterAuth } from "better-auth";
 import { getMigrations } from "better-auth/db/migration";
 import { toNodeHandler } from "better-auth/node";
-import { anonymous, emailOTP, jwt } from "better-auth/plugins";
 import { build } from "esbuild";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { chromium, request } from "playwright";
+import { createNearAuthOptions } from "../../apps/web/server/utils/near-auth.ts";
 
 let server;
 let browser;
@@ -22,37 +20,24 @@ const origin = "http://localhost:33331";
 
 before(async () => {
   database = new DatabaseSync(":memory:");
-  const options = {
+  const options = createNearAuthOptions({
     baseURL: origin,
     secret: "local-test-secret-never-used-in-production-123456",
     database,
-    user: { deleteUser: { enabled: true } },
-    plugins: [
-      anonymous(),
-      passkey({ rpID: "localhost", origin }),
-      emailOTP({
-        disableSignUp: true,
-        storeOTP: "hashed",
-        changeEmail: { enabled: true },
-        async sendVerificationOTP({ email, otp, type }) {
-          mailbox.set(`${type}:${email}`, otp);
-        },
-      }),
-      jwt(),
-      oauthProvider({
-        loginPage: "/login",
-        consentPage: "/consent",
-        scopes: ["openid"],
-        signup: {
-          page: "/setup",
-          shouldRedirect: async ({ user }) =>
-            !database
-              .prepare('SELECT 1 FROM passkey WHERE "userId" = ? LIMIT 1')
-              .get(user.id),
-        },
-      }),
-    ],
-  };
+    rpID: "localhost",
+    origin,
+    allowTestDeletion: true,
+    hasPasskey: async (id) =>
+      !!database
+        .prepare('SELECT 1 FROM passkey WHERE "userId" = ? LIMIT 1')
+        .get(id),
+    revokePriorPasskeys: async (id) => {
+      database.prepare('DELETE FROM passkey WHERE "userId" = ?').run(id);
+    },
+    async sendVerificationOTP({ email, otp, type }) {
+      mailbox.set(`${type}:${email}`, otp);
+    },
+  });
   await (await getMigrations(options)).runMigrations();
   database
     .prepare(
@@ -110,15 +95,18 @@ test("register and sign in with a passkey without a real email", async () => {
     const page = await context.newPage();
     const cdp = await context.newCDPSession(page);
     await cdp.send("WebAuthn.enable");
-    await cdp.send("WebAuthn.addVirtualAuthenticator", {
-      options: {
-        protocol: "ctap2",
-        transport: "internal",
-        hasResidentKey: true,
-        hasUserVerification: true,
-        isUserVerified: true,
+    const originalAuthenticator = await cdp.send(
+      "WebAuthn.addVirtualAuthenticator",
+      {
+        options: {
+          protocol: "ctap2",
+          transport: "internal",
+          hasResidentKey: true,
+          hasUserVerification: true,
+          isUserVerified: true,
+        },
       },
-    });
+    );
     await page.goto(origin);
     await page.addScriptTag({ content: script });
     const created = await page.evaluate(async () => {
@@ -127,6 +115,25 @@ test("register and sign in with a passkey without a real email", async () => {
       return { id: created.data.user.id };
     });
     assert.ok(created.id);
+    const unverifiedRecovery = await page.evaluate(() =>
+      window.nearAuth.emailOtp.requestEmailChange({
+        newEmail: "unverified@recovery.invalid",
+      }),
+    );
+    assert.ok(unverifiedRecovery.error);
+    const clientRegistration = await page.evaluate(async () => {
+      const response = await fetch("/api/auth/oauth2/create-client", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          redirect_uris: ["http://localhost:33331/untrusted"],
+          token_endpoint_auth_method: "none",
+          scope: "openid",
+        }),
+      });
+      return response.status;
+    });
+    assert.ok(clientRegistration >= 400);
     const verifier = "test-verifier-with-sufficient-random-length-1234567890";
     const challenge = createHash("sha256").update(verifier).digest("base64url");
     const params = new URLSearchParams({
@@ -147,7 +154,7 @@ test("register and sign in with a passkey without a real email", async () => {
       beforeRegistration.headers().location,
       origin,
     );
-    assert.equal(setupRedirect.pathname, "/setup");
+    assert.equal(setupRedirect.pathname, "/auth/setup");
     const bypass = await page.evaluate(async (oauthQuery) => {
       const response = await fetch("/api/auth/oauth2/continue", {
         method: "POST",
@@ -157,16 +164,31 @@ test("register and sign in with a passkey without a real email", async () => {
       return { status: response.status, body: await response.json() };
     }, setupRedirect.search.slice(1));
     assert.equal(bypass.status, 200);
-    assert.equal(new URL(bypass.body.url, origin).pathname, "/setup");
-    const result = await page.evaluate(async (id) => {
+    assert.equal(new URL(bypass.body.url, origin).pathname, "/auth/setup");
+    const registration = await page.evaluate(async () => {
       const registered = await window.nearAuth.passkey.addPasskey();
       if (registered.error) return { error: registered.error.message };
+      return { registered: true };
+    });
+    assert.deepEqual(registration, { registered: true });
+    const beforeSignIn = await context.request.get(authorizeUrl, {
+      maxRedirects: 0,
+    });
+    assert.equal(
+      new URL(beforeSignIn.headers().location, origin).pathname,
+      "/auth/setup",
+    );
+    const result = await page.evaluate(async (id) => {
       await window.nearAuth.signOut();
       const signedIn = await window.nearAuth.signIn.passkey();
       if (signedIn.error) return { error: signedIn.error.message };
       return { sameUser: signedIn.data.user.id === id };
     }, created.id);
     assert.deepEqual(result, { sameUser: true });
+    const additionalPasskey = await page.evaluate(() =>
+      window.nearAuth.passkey.addPasskey(),
+    );
+    assert.ok(additionalPasskey.error);
     const otherContext = await browser.newContext();
     let otherId;
     try {
@@ -184,7 +206,7 @@ test("register and sign in with a passkey without a real email", async () => {
       assert.equal(otherAuthorization.status(), 302);
       assert.equal(
         new URL(otherAuthorization.headers().location, origin).pathname,
-        "/setup",
+        "/auth/setup",
       );
     } finally {
       await otherContext.close();
@@ -268,6 +290,33 @@ test("register and sign in with a passkey without a real email", async () => {
     );
     assert.equal(recovered.error, null);
     assert.equal(recovered.data.user.id, created.id);
+    const beforeReplacement = await context.request.get(authorizeUrl, {
+      maxRedirects: 0,
+    });
+    assert.equal(
+      new URL(beforeReplacement.headers().location, origin).pathname,
+      "/auth/setup",
+    );
+    await cdp.send("WebAuthn.removeVirtualAuthenticator", {
+      authenticatorId: originalAuthenticator.authenticatorId,
+    });
+    await cdp.send("WebAuthn.addVirtualAuthenticator", {
+      options: {
+        protocol: "ctap2",
+        transport: "internal",
+        hasResidentKey: true,
+        hasUserVerification: true,
+        isUserVerified: true,
+      },
+    });
+    const replacement = await page.evaluate(() =>
+      window.nearAuth.passkey.addPasskey(),
+    );
+    assert.equal(replacement.error, null);
+    assert.equal(
+      database.prepare("SELECT count(*) AS n FROM passkey").get().n,
+      1,
+    );
     await page.evaluate(() => window.nearAuth.signOut());
     const reuse = await page.evaluate(
       async ({ email, otp }) => window.nearAuth.signIn.emailOtp({ email, otp }),

@@ -1,10 +1,19 @@
 export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   runtimeConfig: {
+    nearAuthEnabled: false,
+    nearAuthBaseUrl: "",
+    nearAuthSecret: "",
+    nearAuthDatabaseUrl: "",
+    nearAuthSmtpUrl: "",
+    nearAuthMailFrom: "",
+    nearAuthSupabaseSecretKey: "",
     public: {
       supabaseUrl: "",
       supabasePublishableKey: "",
       googleAuthEnabled: false,
+      nearPasskeyEnabled: false,
+      nearRecoveryEnabled: false,
     },
   },
   devtools: { enabled: false },
