@@ -115,6 +115,21 @@ test("register and sign in with a passkey without a real email", async () => {
       return { id: created.data.user.id };
     });
     assert.ok(created.id);
+    const prematureRecovery = await page.evaluate(() =>
+      window.nearAuth.emailOtp.requestEmailChange({
+        newEmail: "near-test@recovery.invalid",
+      }),
+    );
+    assert.equal(prematureRecovery.error?.status, 403);
+    await page.evaluate(() =>
+      window.nearAuth.updateSession({ nearAuthMethod: "passkey" }),
+    );
+    const forgedRecovery = await page.evaluate(() =>
+      window.nearAuth.emailOtp.requestEmailChange({
+        newEmail: "near-test@recovery.invalid",
+      }),
+    );
+    assert.equal(forgedRecovery.error?.status, 403);
     const unverifiedRecovery = await page.evaluate(() =>
       window.nearAuth.emailOtp.requestEmailChange({
         newEmail: "unverified@recovery.invalid",
@@ -290,6 +305,12 @@ test("register and sign in with a passkey without a real email", async () => {
     );
     assert.equal(recovered.error, null);
     assert.equal(recovered.data.user.id, created.id);
+    const recoveryChange = await page.evaluate(() =>
+      window.nearAuth.emailOtp.requestEmailChange({
+        newEmail: "another-test@recovery.invalid",
+      }),
+    );
+    assert.equal(recoveryChange.error?.status, 403);
     const beforeReplacement = await context.request.get(authorizeUrl, {
       maxRedirects: 0,
     });
