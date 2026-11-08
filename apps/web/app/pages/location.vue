@@ -21,6 +21,7 @@ const client = ref<SupabaseClient | null>(null);
 const session = ref<Session | null>(null);
 const mapElement = ref<HTMLElement | null>(null);
 const sharing = ref(false);
+const statusUncertain = ref(true);
 const locations = ref<Location[]>([]);
 const busy = ref(false);
 const ready = ref(false);
@@ -109,6 +110,7 @@ async function refresh() {
   if (!session.value || disposed) return;
   const state = data as LocationState;
   sharing.value = state.sharing;
+  statusUncertain.value = false;
   locations.value = state.locations;
   if (!state.sharing && tracking.value) stopPolling();
   await renderMarkers();
@@ -116,9 +118,11 @@ async function refresh() {
 async function sendPosition(action: "start" | "update", run: number) {
   if (!client.value || !session.value || updateInFlight) return false;
   updateInFlight = true;
+  let requestSent = false;
   try {
     const position = await getPosition();
     if (run !== generation || !session.value || disposed) return false;
+    requestSent = true;
     const { error } = await client.value.rpc("near_location_action", {
       action,
       latitude: position.coords.latitude,
@@ -127,12 +131,21 @@ async function sendPosition(action: "start" | "update", run: number) {
     });
     if (error) throw error;
     if (run !== generation || !session.value || disposed) return false;
+    if (action === "start") sharing.value = true;
+    statusUncertain.value = false;
     errorMessage.value = "";
     await refresh();
     return true;
   } catch {
-    errorMessage.value =
-      "位置を更新できませんでした。ブラウザの位置情報の許可と通信状態を確認してください。";
+    if (run !== generation || !session.value || disposed) return false;
+    if (action === "start" && requestSent) {
+      statusUncertain.value = true;
+      errorMessage.value =
+        "共有が開始されたか確認できません。通信を確認し、共有状態を確認するか停止してください。";
+    } else {
+      errorMessage.value =
+        "位置を更新できませんでした。ブラウザの位置情報の許可と通信状態を確認してください。";
+    }
     return false;
   } finally {
     updateInFlight = false;
@@ -171,6 +184,7 @@ async function stop() {
       "共有を停止できませんでした。通信を確認して再度停止してください。";
   else {
     sharing.value = false;
+    statusUncertain.value = false;
     message.value = "位置の共有を停止し、保存済みの位置を削除しました。";
     await refresh();
   }
@@ -218,12 +232,22 @@ onMounted(async () => {
   );
   client.value = supabase;
   const { data } = supabase.auth.onAuthStateChange((_event, next) => {
+    if (next && next.user.id !== session.value?.user.id) {
+      refreshSequence++;
+      stopPolling();
+      statusUncertain.value = true;
+      locations.value = [];
+      centered = false;
+      for (const marker of markers) marker.remove();
+      markers = [];
+    }
     session.value = next;
     if (next) setTimeout(() => void refresh(), 0);
     else {
       refreshSequence++;
       stopPolling();
       sharing.value = false;
+      statusUncertain.value = false;
       locations.value = [];
       centered = false;
       for (const marker of markers) marker.remove();
@@ -274,12 +298,16 @@ onBeforeUnmount(() => {
         >
         <template v-else
           ><div class="location-sharing">
-            <strong>位置共有：{{ sharing ? "オン" : "オフ" }}</strong>
+            <strong
+              >位置共有：{{
+                statusUncertain ? "確認できません" : sharing ? "オン" : "オフ"
+              }}</strong
+            >
             <p>
               共有は初期状態でオフです。停止すると保存された位置も削除されます。
             </p>
             <button
-              v-if="!sharing"
+              v-if="!sharing && !statusUncertain"
               class="primary-button"
               :disabled="busy"
               @click="start"
@@ -287,7 +315,7 @@ onBeforeUnmount(() => {
               位置共有を始める</button
             ><template v-else
               ><button
-                v-if="!tracking"
+                v-if="sharing && !tracking && !statusUncertain"
                 class="secondary-button"
                 :disabled="busy"
                 @click="start"
