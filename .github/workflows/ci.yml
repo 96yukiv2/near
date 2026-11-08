@@ -37,3 +37,4 @@ jobs:
           export TEST_SUPABASE_ANON_KEY="$ANON_KEY"
           export TEST_SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
           npm run test:profile-api
+          npm run test:friends-api
