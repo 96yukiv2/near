@@ -87,6 +87,12 @@ test("account deletion requires a user JWT and deletes only that user's data", a
     const deletion = await a.functions.invoke("delete-account", {
       body: { id: ids[1] },
     });
+    if (deletion.error?.context instanceof Response) {
+      const body = await deletion.error.context.text();
+      assert.fail(
+        `Account deletion failed: ${deletion.error.context.status} ${body}`,
+      );
+    }
     assert.ifError(deletion.error);
     assert.equal(deletion.data.message, "deleted");
     ids.shift();
