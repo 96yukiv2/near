@@ -31,8 +31,10 @@ before(async () => {
       !!database
         .prepare('SELECT 1 FROM passkey WHERE "userId" = ? LIMIT 1')
         .get(id),
-    revokePriorPasskeys: async (id) => {
-      database.prepare('DELETE FROM passkey WHERE "userId" = ?').run(id);
+    revokePriorPasskeys: async (id, keepId) => {
+      database
+        .prepare('DELETE FROM passkey WHERE "userId" = ? AND id <> ?')
+        .run(id, keepId);
     },
     async sendVerificationOTP({ email, otp, type }) {
       mailbox.set(`${type}:${email}`, otp);
@@ -318,6 +320,16 @@ test("register and sign in with a passkey without a real email", async () => {
       new URL(beforeReplacement.headers().location, origin).pathname,
       "/auth/setup",
     );
+    const missingSecondFactor = await page.evaluate(() =>
+      window.nearAuth.passkey.addPasskey(),
+    );
+    assert.equal(missingSecondFactor.error?.status, 403);
+    // The separate recovery-code endpoint upgrades only this verified session.
+    database
+      .prepare(
+        'UPDATE session SET "nearAuthMethod" = ? WHERE "userId" = ? AND "nearAuthMethod" = ?',
+      )
+      .run("recovery_verified", created.id, "recovery");
     await cdp.send("WebAuthn.removeVirtualAuthenticator", {
       authenticatorId: originalAuthenticator.authenticatorId,
     });
