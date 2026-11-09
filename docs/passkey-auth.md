@@ -27,6 +27,7 @@ CI では認証・削除の重要な判定を単体テストし、位置情報�
 認証 DB のマイグレーションとサーバー用接続の準備後、信頼する自分の Supabase プロジェクト用に一度だけ登録します。以下を安全な実行環境の環境変数に設定し、`npm run auth:register-oidc-client` を実行してください。
 
 - `NEAR_AUTH_DATABASE_URL`: 認証 DB の接続文字列。秘密情報です。
+- `NEAR_AUTH_DATABASE_CA`: Supabase の Server root certificate。サーバー証明書の検証に使用します。
 - `NEAR_OIDC_CLIENT_ID`: Supabase のカスタム OIDC 設定にも指定するクライアント ID。
 - `NEAR_OIDC_CLIENT_SECRET`: 同じく Supabase に設定する 32 文字以上の秘密値。秘密情報です。
 - `NEAR_SUPABASE_URL`: Supabase プロジェクトの URL（例: `https://<project-ref>.supabase.co`）。

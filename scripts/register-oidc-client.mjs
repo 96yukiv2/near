@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import pg from "pg";
 
 const databaseURL = process.env.NEAR_AUTH_DATABASE_URL;
+const databaseCa = process.env.NEAR_AUTH_DATABASE_CA;
 const clientId = process.env.NEAR_OIDC_CLIENT_ID;
 const clientSecret = process.env.NEAR_OIDC_CLIENT_SECRET;
 const supabaseURL = process.env.NEAR_SUPABASE_URL;
@@ -26,7 +27,20 @@ if (
 const secretHash = createHash("sha256")
   .update(clientSecret)
   .digest("base64url");
-const pool = new pg.Pool({ connectionString: databaseURL, max: 1 });
+const dbURL = new URL(databaseURL);
+if (databaseCa) {
+  for (const key of ["sslmode", "sslrootcert", "sslcert", "sslkey"])
+    dbURL.searchParams.delete(key);
+}
+const pool = new pg.Pool({
+  connectionString: dbURL.toString(),
+  ...(databaseCa
+    ? {
+        ssl: { ca: databaseCa.replace(/\\n/g, "\n"), rejectUnauthorized: true },
+      }
+    : {}),
+  max: 1,
+});
 try {
   await pool.query(
     `insert into near_auth."oauthClient"

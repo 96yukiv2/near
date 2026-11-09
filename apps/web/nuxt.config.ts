@@ -5,6 +5,7 @@ export default defineNuxtConfig({
     nearAuthBaseUrl: "",
     nearAuthSecret: "",
     nearAuthDatabaseUrl: "",
+    nearAuthDatabaseCa: "",
     nearAuthSmtpUrl: "",
     nearAuthMailFrom: "",
     nearAuthSupabaseSecretKey: "",

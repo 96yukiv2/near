@@ -15,6 +15,8 @@ export function getNearAuth(event: H3Event) {
   const baseURL = String(config.nearAuthBaseUrl);
   const secret = String(config.nearAuthSecret);
   const databaseURL = String(config.nearAuthDatabaseUrl);
+  const databaseCa = String(config.nearAuthDatabaseCa);
+  let connectionString = databaseURL;
   let parsed: URL;
   let sendVerificationOTP;
   try {
@@ -28,6 +30,15 @@ export function getNearAuth(event: H3Event) {
       !databaseURL
     )
       throw new Error("invalid configuration");
+    if (databaseCa) {
+      const db = new URL(databaseURL);
+      if (!["postgres:", "postgresql:"].includes(db.protocol))
+        throw new Error("invalid database URL");
+      // pg connection-string SSL parameters would otherwise override the CA.
+      for (const key of ["sslmode", "sslrootcert", "sslcert", "sslkey"])
+        db.searchParams.delete(key);
+      connectionString = db.toString();
+    }
     sendVerificationOTP = createRecoveryMailer(
       String(config.nearAuthSmtpUrl),
       String(config.nearAuthMailFrom),
@@ -36,7 +47,15 @@ export function getNearAuth(event: H3Event) {
     throw createError({ statusCode: 503, statusMessage: "Auth unavailable" });
   }
   const database = new Pool({
-    connectionString: databaseURL,
+    connectionString,
+    ...(databaseCa
+      ? {
+          ssl: {
+            ca: databaseCa.replace(/\\n/g, "\n"),
+            rejectUnauthorized: true,
+          },
+        }
+      : {}),
     max: 2,
     options: "-c search_path=near_auth",
   });
