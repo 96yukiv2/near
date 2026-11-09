@@ -12,13 +12,7 @@
     "format:check": "prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:passkey": "node --test tests/passkey/passkey.node.mjs",
-    "test:auth-browser": "node --test tests/passkey/nuxt.node.mjs",
-    "auth:register-oidc-client": "node scripts/register-oidc-client.mjs",
-    "test:profile-api": "node --test scripts/test-profile-api.mjs",
-    "test:friends-api": "node --test scripts/test-friends-api.mjs",
-    "test:location-api": "node --test scripts/test-location-api.mjs",
-    "test:delete-account-api": "node --test scripts/test-delete-account-api.mjs"
+    "auth:register-oidc-client": "node scripts/register-oidc-client.mjs"
   },
   "devDependencies": {
     "@better-auth/oauth-provider": "1.7.18",

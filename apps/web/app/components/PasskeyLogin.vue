@@ -139,22 +139,25 @@ async function retryDeletion() {
         <p v-if="errorMessage" class="account-alert error" role="alert">
           {{ errorMessage }}
         </p>
-        <button
-          class="primary-button"
-          type="button"
-          :disabled="busy"
-          @click="begin(false)"
-        >
-          パスキーでログイン
-        </button>
-        <button
-          class="secondary-button"
-          type="button"
-          :disabled="busy"
-          @click="begin(true)"
-        >
-          はじめて利用する
-        </button>
+        <div class="passkey-actions">
+          <button
+            class="primary-button"
+            type="button"
+            :disabled="busy"
+            @click="begin(false)"
+          >
+            パスキーでログイン
+          </button>
+          <button
+            class="secondary-button"
+            type="button"
+            :disabled="busy"
+            @click="begin(true)"
+          >
+            はじめて利用する
+          </button>
+        </div>
+        <p v-if="busy" role="status">認証処理中です…</p>
         <p class="account-intro">
           パスキーをすべて失うと、復旧方法を設定していない場合はアカウントを復元できません。
         </p>

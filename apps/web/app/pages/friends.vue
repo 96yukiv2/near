@@ -272,7 +272,6 @@ async function copyInvite() {
             <p>解除しても友達関係は自動で戻りません。</p>
           </div>
         </template>
-        <a class="back-link" href="/">← マップに戻る</a>
       </section>
     </div>
     <AppNav active="friends" />

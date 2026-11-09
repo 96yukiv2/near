@@ -212,6 +212,10 @@ h2 {
   background: #e7f3e7;
   color: #416f58;
 }
+.passkey-actions {
+  display: grid;
+  gap: 12px;
+}
 .location-sharing .primary-button {
   margin-top: 6px;
 }
