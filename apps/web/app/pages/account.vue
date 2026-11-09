@@ -7,6 +7,7 @@ import {
 import { onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { createAuthClient } from "better-auth/vue";
 import { passkeyClient } from "@better-auth/passkey/client";
+import { getPendingInvite } from "../utils/pending-invite";
 import {
   getProfileIcon,
   profileIcons,
@@ -23,6 +24,7 @@ const message = ref("");
 const errorMessage = ref("");
 const busy = ref(false);
 const ready = ref(false);
+const hasPendingInvite = ref(false);
 let unsubscribe: (() => void) | undefined;
 const redirectUrl = () => `${window.location.origin}/account`;
 
@@ -51,9 +53,17 @@ async function loadProfile() {
     displayName.value = result.data?.display_name ?? "";
     profileIcon.value = getProfileIcon(result.data?.icon).id;
   }
+  if (hasPendingInvite.value && displayName.value) {
+    window.location.assign("/friends");
+  }
 }
 
 onMounted(async () => {
+  try {
+    hasPendingInvite.value = !!getPendingInvite(window.sessionStorage);
+  } catch {
+    hasPendingInvite.value = false;
+  }
   if (!config.public.supabaseUrl || !config.public.supabasePublishableKey) {
     errorMessage.value =
       "Supabaseが未設定です。READMEの手順でローカル環境を設定してください。";
@@ -97,6 +107,7 @@ async function saveProfile() {
   else {
     displayName.value = name;
     message.value = "プロフィールを保存しました。";
+    if (hasPendingInvite.value) window.location.assign("/friends");
   }
   busy.value = false;
 }
@@ -208,6 +219,9 @@ async function passkeyLogin() {
           {{ errorMessage }}
         </p>
         <p v-if="message" class="account-alert" role="status">{{ message }}</p>
+        <p v-if="hasPendingInvite" class="account-alert" role="status">
+          友達から招待が届いています。ログインと表示名の設定後に確認できます。
+        </p>
         <p v-if="!ready">読み込み中…</p>
         <template v-else-if="session">
           <p class="account-intro">ログイン中</p>
