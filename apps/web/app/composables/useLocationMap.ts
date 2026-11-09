@@ -1,8 +1,4 @@
-import type {
-  Map as MapLibreMap,
-  Marker as MapLibreMarker,
-  StyleSpecification,
-} from "maplibre-gl";
+import type { Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
 import { getProfileIcon } from "../utils/profile-icon";
 
 export type MapLocation = {
@@ -25,11 +21,11 @@ export function useLocationMap() {
   async function initialize(container: HTMLElement, styleUrl = "") {
     const maplibre = await import("maplibre-gl");
     if (disposed) return;
-    const fallbackStyle: StyleSpecification = {
-      version: 8,
+    const fallbackStyle = {
+      version: 8 as const,
       sources: {
         osm: {
-          type: "raster",
+          type: "raster" as const,
           tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
           tileSize: 256,
           attribution:
@@ -40,7 +36,7 @@ export function useLocationMap() {
       layers: [
         {
           id: "osm",
-          type: "raster",
+          type: "raster" as const,
           source: "osm",
           paint: {
             "raster-saturation": -0.32,
