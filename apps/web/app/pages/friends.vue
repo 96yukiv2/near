@@ -170,7 +170,7 @@ async function copyInvite() {
           <p v-if="inviteToken" class="account-intro">
             {{
               inviteSaved
-                ? "ログインと表示名の設定後、友達画面に戻って申請してください。"
+                ? "ログインと表示名の設定後、招待画面に戻ります。"
                 : "このページを開いたままログイン後、戻って申請してください。"
             }}
           </p></template
