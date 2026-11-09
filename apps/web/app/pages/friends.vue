@@ -5,6 +5,11 @@ import {
   type SupabaseClient,
 } from "@supabase/supabase-js";
 import { onBeforeUnmount, onMounted, ref } from "vue";
+import {
+  clearPendingInvite,
+  getPendingInvite,
+  savePendingInvite,
+} from "../utils/pending-invite";
 
 type Person = { id: string; name: string };
 type Request = { id: string; user_id: string; name: string };
@@ -25,6 +30,8 @@ const data = ref<Relationships>({
 });
 const inviteToken = ref("");
 const inviteLink = ref("");
+const inviteSaved = ref(false);
+let inviteStorage: Storage | undefined;
 const message = ref("");
 const errorMessage = ref("");
 const busy = ref(false);
@@ -45,13 +52,25 @@ onMounted(() => {
   const token = new URLSearchParams(window.location.hash.slice(1)).get(
     "invite",
   );
+  try {
+    inviteStorage = window.sessionStorage;
+  } catch {
+    inviteStorage = undefined;
+  }
   if (token) {
     inviteToken.value = token;
-    history.replaceState(
-      null,
-      "",
-      window.location.pathname + window.location.search,
-    );
+    inviteSaved.value =
+      !!inviteStorage && savePendingInvite(inviteStorage, token);
+    if (inviteSaved.value) {
+      history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search,
+      );
+    }
+  } else if (inviteStorage) {
+    inviteToken.value = getPendingInvite(inviteStorage);
+    inviteSaved.value = !!inviteToken.value;
   }
   if (!config.public.supabaseUrl || !config.public.supabasePublishableKey) {
     errorMessage.value = "Supabaseが未設定です。";
@@ -96,7 +115,11 @@ async function act(action: string, target?: string) {
     message.value =
       "招待リンクを作成しました。有効期限は24時間で、1回だけ使用できます。";
   } else {
-    if (action === "request") inviteToken.value = "";
+    if (action === "request") {
+      inviteToken.value = "";
+      if (inviteStorage) clearPendingInvite(inviteStorage);
+      inviteSaved.value = false;
+    }
     message.value =
       action === "request"
         ? "友達申請を送りました。相手の承認を待ちましょう。"
@@ -134,11 +157,21 @@ async function copyInvite() {
         <p v-if="!ready">読み込み中…</p>
         <template v-else-if="!session"
           ><p>友達機能を使うには、ログインと表示名の設定が必要です。</p>
-          <a class="back-link" href="/account" target="_blank" rel="noopener"
+          <a
+            v-if="inviteToken && !inviteSaved"
+            class="back-link"
+            href="/account"
+            target="_blank"
+            rel="noopener"
             >別のタブでログイン →</a
           >
+          <a v-else class="back-link" href="/account">ログイン →</a>
           <p v-if="inviteToken" class="account-intro">
-            このページを開いたままログイン後、戻って申請してください。
+            {{
+              inviteSaved
+                ? "ログインと表示名の設定後、友達画面に戻って申請してください。"
+                : "このページを開いたままログイン後、戻って申請してください。"
+            }}
           </p></template
         >
         <template v-else>
