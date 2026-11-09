@@ -39,7 +39,7 @@ npm test
 npm run build
 ```
 
-CI は lint、formatter、型チェック、ビルドを実行します。テストは一時的に CI から外しており、`npm test` で単体テストを実行できます。位置情報などの API 権限テストのファイルも `scripts/` に残しています。CI では安全性を自動確認しないため、実際の位置を共有する前に権限テストと実機確認が必要です。Dependabot は npm と GitHub Actions の更新を確認します。
+CI は lint、formatter、型チェック、`npm test` による Vitest の単体テスト、ビルドを実行します。招待、位置の鮮度、認証・復旧、アカウント削除などの重要なロジックを確認します。単体テストだけでは DB のアクセス制御を確認できないため、位置情報などの API 権限テストは `scripts/` に残しています。実際の位置を共有する前に権限テストと実機確認が必要です。Dependabot は npm と GitHub Actions の更新を確認します。
 
 API 権限テストを手動で実行する場合は、Docker を用意し、使い捨てのローカル Supabase のみを使います。
 
