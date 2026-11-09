@@ -24,6 +24,7 @@ export function createNearAuthOptions(settings: {
   revokePriorPasskeys?: (
     userId: string,
     keepPasskeyId: string,
+    sessionId: string,
   ) => Promise<void>;
   sendVerificationOTP?: (message: {
     email: string;
@@ -120,6 +121,7 @@ export function createNearAuthOptions(settings: {
           current.session.nearAuthMethod,
           current.user.id,
           ctx.context.returned,
+          current.session.id,
           settings.revokePriorPasskeys,
         );
       }),

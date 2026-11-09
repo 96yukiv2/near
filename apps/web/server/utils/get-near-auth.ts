@@ -3,6 +3,7 @@ import type { H3Event } from "h3";
 import { Pool } from "pg";
 import { createNearAuthOptions } from "./near-auth";
 import { createRecoveryMailer } from "./recovery-mail";
+import { RECOVERY_PREFIX } from "./recovery-code";
 
 let instance:
   { auth: ReturnType<typeof betterAuth>; database: Pool } | undefined;
@@ -74,11 +75,27 @@ export function getNearAuth(event: H3Event) {
         );
         return result.rowCount === 1;
       },
-      async revokePriorPasskeys(userId, keepPasskeyId) {
-        await database.query(
-          'delete from near_auth.passkey where "userId" = $1 and id <> $2',
-          [userId, keepPasskeyId],
-        );
+      async revokePriorPasskeys(userId, keepPasskeyId, sessionId) {
+        const client = await database.connect();
+        try {
+          await client.query("begin");
+          const consumed = await client.query(
+            `delete from near_auth.verification where id = $1 and value::jsonb->>'reservedSession' = $2`,
+            [RECOVERY_PREFIX + userId, sessionId],
+          );
+          if (consumed.rowCount !== 1)
+            throw new Error("Recovery authorization expired");
+          await client.query(
+            'delete from near_auth.passkey where "userId" = $1 and id <> $2',
+            [userId, keepPasskeyId],
+          );
+          await client.query("commit");
+        } catch (error) {
+          await client.query("rollback");
+          throw error;
+        } finally {
+          client.release();
+        }
       },
     }),
   );

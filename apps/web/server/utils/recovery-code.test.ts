@@ -3,6 +3,7 @@ import {
   checkRecoveryCode,
   generateRecoveryCode,
   hashRecoveryCode,
+  reservedForAnotherSession,
 } from "./recovery-code";
 
 describe("recovery codes", () => {
@@ -17,6 +18,19 @@ describe("recovery codes", () => {
       checkRecoveryCode(initial, hashRecoveryCode(code, "other-secret"), 1000)
         .accepted,
     ).toBe(false);
+  });
+
+  it("reserves a recovery code for one session until the reservation expires", () => {
+    const state = {
+      hash: "hash",
+      attempts: 0,
+      lockedUntil: 0,
+      reservedSession: "first",
+      reservedUntil: 5000,
+    };
+    expect(reservedForAnotherSession(state, "first", 1000)).toBe(false);
+    expect(reservedForAnotherSession(state, "second", 1000)).toBe(true);
+    expect(reservedForAnotherSession(state, "second", 5000)).toBe(false);
   });
 
   it("locks attempts for 15 minutes after five failures", () => {

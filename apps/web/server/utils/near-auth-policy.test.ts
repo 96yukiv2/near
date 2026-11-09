@@ -31,17 +31,25 @@ describe("authentication policy", () => {
 describe("passkey recovery", () => {
   it("keeps existing passkeys when registration fails or belongs to another user", async () => {
     const revoke = vi.fn();
-    await completePasskeyRecovery("recovery_verified", "alice", null, revoke);
+    await completePasskeyRecovery(
+      "recovery_verified",
+      "alice",
+      null,
+      "session",
+      revoke,
+    );
     await completePasskeyRecovery(
       "recovery_verified",
       "alice",
       { id: "new", userId: "bob" },
+      "session",
       revoke,
     );
     await completePasskeyRecovery(
       "passkey",
       "alice",
       { id: "new", userId: "alice" },
+      "session",
       revoke,
     );
     expect(revoke).not.toHaveBeenCalled();
@@ -53,8 +61,9 @@ describe("passkey recovery", () => {
       "recovery_verified",
       "alice",
       { id: "new", userId: "alice" },
+      "session",
       revoke,
     );
-    expect(revoke).toHaveBeenCalledExactlyOnceWith("alice", "new");
+    expect(revoke).toHaveBeenCalledExactlyOnceWith("alice", "new", "session");
   });
 });

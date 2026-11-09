@@ -2,6 +2,7 @@ import {
   checkRecoveryCode,
   hashRecoveryCode,
   RECOVERY_PREFIX,
+  reservedForAnotherSession,
   type RecoveryState,
 } from "../../utils/recovery-code";
 import { requireRecoverySession } from "../../utils/recovery-request";
@@ -28,24 +29,36 @@ export default defineEventHandler(async (event) => {
     );
     if (row.rows[0]) {
       const state = JSON.parse(row.rows[0].value) as RecoveryState;
+      const reserved = reservedForAnotherSession(
+        state,
+        session.session.id,
+        Date.now(),
+      );
       const result = checkRecoveryCode(
         state,
         hashRecoveryCode(body.code, String(config.nearAuthSecret)),
         Date.now(),
       );
-      if (result.accepted) {
+      if (result.accepted && !reserved) {
         const updated = await client.query(
           `update near_auth."session" set "nearAuthMethod" = 'recovery_verified' where id = $1 and "userId" = $2 and "nearAuthMethod" = 'recovery' and "expiresAt" > now() and "createdAt" >= now() - interval '5 minutes'`,
           [session.session.id, session.user.id],
         );
         if (updated.rowCount === 1) {
           await client.query(
-            "delete from near_auth.verification where id = $1",
-            [id],
+            'update near_auth.verification set value = $2, "updatedAt" = now() where id = $1',
+            [
+              id,
+              JSON.stringify({
+                ...result.state,
+                reservedSession: session.session.id,
+                reservedUntil: Date.now() + 5 * 60_000,
+              }),
+            ],
           );
           accepted = true;
         }
-      } else {
+      } else if (!reserved) {
         await client.query(
           'update near_auth.verification set value = $2, "updatedAt" = now() where id = $1',
           [id, JSON.stringify(result.state)],

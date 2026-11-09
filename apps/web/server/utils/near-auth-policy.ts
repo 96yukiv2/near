@@ -23,8 +23,14 @@ export async function completePasskeyRecovery(
   method: unknown,
   userId: string,
   result: unknown,
+  sessionId: string,
   revoke:
-    ((userId: string, keepPasskeyId: string) => Promise<void>) | undefined,
+    | ((
+        userId: string,
+        keepPasskeyId: string,
+        sessionId: string,
+      ) => Promise<void>)
+    | undefined,
 ): Promise<void> {
   if (method !== "recovery_verified") return;
   if (
@@ -38,5 +44,5 @@ export async function completePasskeyRecovery(
   )
     return;
   if (!revoke) throw new Error("Recovery unavailable");
-  await revoke(userId, result.id);
+  await revoke(userId, result.id, sessionId);
 }

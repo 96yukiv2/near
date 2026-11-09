@@ -8,6 +8,8 @@ export type RecoveryState = {
   hash: string;
   attempts: number;
   lockedUntil: number;
+  reservedSession?: string;
+  reservedUntil?: number;
 };
 
 export function generateRecoveryCode() {
@@ -16,6 +18,16 @@ export function generateRecoveryCode() {
 
 export function hashRecoveryCode(code: string, secret: string) {
   return createHmac("sha256", secret).update(code).digest("hex");
+}
+
+export function reservedForAnotherSession(
+  state: RecoveryState,
+  sessionId: string,
+  now: number,
+): boolean {
+  return (
+    (state.reservedUntil ?? 0) > now && state.reservedSession !== sessionId
+  );
 }
 
 export function checkRecoveryCode(
