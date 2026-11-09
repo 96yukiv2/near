@@ -175,7 +175,10 @@ onMounted(async () => {
   }
   if (!mapElement.value) return;
   try {
-    await locationMap.initialize(mapElement.value);
+    await locationMap.initialize(
+      mapElement.value,
+      String(config.public.mapStyleUrl),
+    );
   } catch {
     errorMessage.value =
       "地図を表示できませんでした。共有の停止は引き続き操作できます。";
@@ -341,7 +344,7 @@ onBeforeUnmount(() => {
           </div>
         </template>
         <p class="map-privacy">
-          地図の表示時、OpenStreetMap に IP アドレスと表示範囲が送られます。
+          地図の表示時、地図の提供元に IP アドレスと表示範囲が送られます。
         </p>
       </div>
       <div
