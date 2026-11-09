@@ -38,6 +38,7 @@ export function createNearAuthOptions(settings: {
     baseURL: settings.baseURL,
     secret: settings.secret,
     database: settings.database,
+    onAPIError: { errorURL: `${settings.baseURL}/auth/error` },
     rateLimit: {
       enabled: true,
       storage: "database",
