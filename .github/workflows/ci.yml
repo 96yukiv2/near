@@ -1,9 +1,13 @@
 name: CI
 on:
   push:
+    branches: [main]
   pull_request:
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   checks:
     runs-on: ubuntu-latest
@@ -39,3 +43,14 @@ jobs:
           npm run test:profile-api
           npm run test:friends-api
           npm run test:location-api
+          npx supabase functions serve delete-account > "$RUNNER_TEMP/near-edge.log" 2>&1 &
+          near_functions_pid=$!
+          trap 'code=$?; if [ "$code" -ne 0 ]; then cat "$RUNNER_TEMP/near-edge.log"; fi; kill "$near_functions_pid" 2>/dev/null || true' EXIT
+          ready=false
+          for attempt in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY" "$API_URL/functions/v1/delete-account" || true)
+            if [ "$status" = "405" ]; then ready=true; break; fi
+            sleep 2
+          done
+          if [ "$ready" != "true" ]; then echo 'Edge Function did not become ready'; exit 1; fi
+          npm run test:delete-account-api

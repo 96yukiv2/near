@@ -4,17 +4,14 @@ import {
   type Session,
   type SupabaseClient,
 } from "@supabase/supabase-js";
-import type { Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
+import {
+  useLocationMap,
+  type MapLocation,
+} from "../composables/useLocationMap";
 import { onBeforeUnmount, onMounted, ref } from "vue";
+import { formatLocationTime, isLocationStale } from "../utils/location";
 
-type Location = {
-  id: string;
-  name: string;
-  latitude: number;
-  longitude: number;
-  accuracy_m: number;
-  updated_at: string;
-};
+type Location = MapLocation;
 type LocationState = { sharing: boolean; locations: Location[] };
 const config = useRuntimeConfig();
 const client = ref<SupabaseClient | null>(null);
@@ -30,13 +27,11 @@ const message = ref("");
 const errorMessage = ref("");
 const clock = ref(Date.now());
 let unsubscribe: (() => void) | undefined;
-let map: MapLibreMap | undefined;
-let markers: MapLibreMarker[] = [];
+const locationMap = useLocationMap();
 let poll: ReturnType<typeof setInterval> | undefined;
 let tick: ReturnType<typeof setInterval> | undefined;
 let generation = 0;
 let updateInFlight = false;
-let centered = false;
 let disposed = false;
 let refreshSequence = 0;
 
@@ -47,10 +42,10 @@ function stopPolling() {
   tracking.value = false;
 }
 function isStale(location: Location) {
-  return clock.value - new Date(location.updated_at).getTime() > 15 * 60_000;
+  return isLocationStale(location.updated_at, clock.value);
 }
 function formatDate(value: string) {
-  return new Date(value).toLocaleString("ja-JP");
+  return formatLocationTime(value, clock.value);
 }
 function getPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) =>
@@ -60,35 +55,6 @@ function getPosition(): Promise<GeolocationPosition> {
       maximumAge: 10000,
     }),
   );
-}
-async function renderMarkers() {
-  if (!map) return;
-  const maplibre = await import("maplibre-gl");
-  if (!map || disposed) return;
-  for (const marker of markers) marker.remove();
-  markers = locations.value.map((location) => {
-    const el = document.createElement("button");
-    el.className = "map-marker";
-    el.style.setProperty(
-      "--marker-color",
-      location.id === session.value?.user.id ? "#82b993" : "#ffad91",
-    );
-    el.textContent = location.name.slice(0, 1);
-    el.setAttribute("aria-label", `${location.name}の位置`);
-    el.addEventListener("click", () =>
-      map?.flyTo({ center: [location.longitude, location.latitude], zoom: 12 }),
-    );
-    return new maplibre.Marker({ element: el })
-      .setLngLat([location.longitude, location.latitude])
-      .addTo(map!);
-  });
-  if (!centered && locations.value.length) {
-    centered = true;
-    const bounds = new maplibre.LngLatBounds();
-    for (const item of locations.value)
-      bounds.extend([item.longitude, item.latitude]);
-    map.fitBounds(bounds, { padding: 80, maxZoom: 13, duration: 0 });
-  }
 }
 async function refresh() {
   if (!client.value || !session.value) return;
@@ -113,7 +79,7 @@ async function refresh() {
   statusUncertain.value = false;
   locations.value = state.locations;
   if (!state.sharing && tracking.value) stopPolling();
-  await renderMarkers();
+  await locationMap.render(locations.value, actorId);
 }
 async function sendPosition(action: "start" | "update", run: number) {
   if (!client.value || !session.value || updateInFlight) return false;
@@ -197,36 +163,14 @@ onMounted(async () => {
     ready.value = true;
     return;
   }
-  const maplibre = await import("maplibre-gl");
-  if (disposed || !mapElement.value) return;
-  map = new maplibre.Map({
-    container: mapElement.value,
-    style: {
-      version: 8,
-      sources: {
-        osm: {
-          type: "raster",
-          tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-          tileSize: 256,
-          attribution:
-            '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
-          maxzoom: 19,
-        },
-      },
-      layers: [{ id: "osm", type: "raster", source: "osm" }],
-    },
-    center: [139.7, 35.66],
-    zoom: 4,
-    attributionControl: false,
-  });
-  map.addControl(
-    new maplibre.AttributionControl({ compact: false }),
-    "bottom-right",
-  );
-  map.addControl(
-    new maplibre.NavigationControl({ showCompass: false }),
-    "bottom-right",
-  );
+  if (!mapElement.value) return;
+  try {
+    await locationMap.initialize(mapElement.value);
+  } catch {
+    errorMessage.value =
+      "地図を表示できませんでした。共有の停止は引き続き操作できます。";
+  }
+  if (disposed) return;
   const supabase = createClient(
     config.public.supabaseUrl,
     config.public.supabasePublishableKey,
@@ -238,9 +182,7 @@ onMounted(async () => {
       stopPolling();
       statusUncertain.value = true;
       locations.value = [];
-      centered = false;
-      for (const marker of markers) marker.remove();
-      markers = [];
+      locationMap.clear();
     }
     session.value = next;
     if (next) setTimeout(() => void refresh(), 0);
@@ -250,9 +192,7 @@ onMounted(async () => {
       sharing.value = false;
       statusUncertain.value = false;
       locations.value = [];
-      centered = false;
-      for (const marker of markers) marker.remove();
-      markers = [];
+      locationMap.clear();
     }
   });
   unsubscribe = () => data.subscription.unsubscribe();
@@ -267,7 +207,7 @@ onBeforeUnmount(() => {
   stopPolling();
   if (tick) clearInterval(tick);
   unsubscribe?.();
-  map?.remove();
+  locationMap.destroy();
 });
 </script>
 
@@ -279,7 +219,21 @@ onBeforeUnmount(() => {
           >.</span
         ></a
       >
-      <nav><a href="/friends">友達</a><a href="/account">アカウント</a></nav>
+      <span
+        v-if="session"
+        class="header-caption sharing-badge"
+        :class="{ active: sharing && !statusUncertain }"
+        aria-live="polite"
+      >
+        {{
+          statusUncertain
+            ? "共有状態を確認中"
+            : sharing
+              ? "● 位置を共有中"
+              : "○ 共有オフ"
+        }}
+      </span>
+      <span v-else class="header-caption">your people, closer ✳</span>
     </header>
     <section class="location-content">
       <div class="location-panel">
@@ -362,5 +316,6 @@ onBeforeUnmount(() => {
         aria-label="位置マーカーの表示領域"
       ></div>
     </section>
+    <AppNav active="map" />
   </main>
 </template>
