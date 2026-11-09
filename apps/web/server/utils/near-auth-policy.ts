@@ -11,6 +11,23 @@ export function isRecentAuth(
   return Number.isFinite(age) && age >= 0 && age <= RECENT_AUTH_MS;
 }
 
+/** Recovery sessions may register a key only after both factors and only while fresh. */
+export function mayRegisterPasskey(
+  method: unknown,
+  createdAt: Date | string | undefined,
+  hasPasskey: boolean,
+  now = Date.now(),
+): boolean {
+  if (
+    method === "recovery" ||
+    method === "recovery_verified" ||
+    method === "recovery_complete" ||
+    hasPasskey
+  )
+    return isRecentAuth(method, createdAt, "recovery_verified", now);
+  return true;
+}
+
 export function mayIssueAuthorization(
   method: unknown,
   hasPasskey: boolean,

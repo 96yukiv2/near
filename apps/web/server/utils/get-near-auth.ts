@@ -40,10 +40,14 @@ export function getNearAuth(event: H3Event) {
         db.searchParams.delete(key);
       connectionString = db.toString();
     }
-    sendVerificationOTP = createRecoveryMailer(
-      String(config.nearAuthSmtpUrl),
-      String(config.nearAuthMailFrom),
-    );
+    if (String(config.nearAuthRecoveryEnabled) === "true") {
+      sendVerificationOTP = createRecoveryMailer(
+        String(config.nearAuthSmtpUrl),
+        String(config.nearAuthMailFrom),
+      );
+      if (!sendVerificationOTP)
+        throw new Error("Recovery email is not configured");
+    }
   } catch {
     throw createError({ statusCode: 503, statusMessage: "Auth unavailable" });
   }
@@ -88,6 +92,16 @@ export function getNearAuth(event: H3Event) {
           await client.query(
             'delete from near_auth.passkey where "userId" = $1 and id <> $2',
             [userId, keepPasskeyId],
+          );
+          const completed = await client.query(
+            `update near_auth."session" set "nearAuthMethod" = 'recovery_complete' where id = $1 and "userId" = $2 and "nearAuthMethod" = 'recovery_verified'`,
+            [sessionId, userId],
+          );
+          if (completed.rowCount !== 1)
+            throw new Error("Recovery authorization expired");
+          await client.query(
+            'delete from near_auth."session" where "userId" = $1 and id <> $2',
+            [userId, sessionId],
           );
           await client.query("commit");
         } catch (error) {
