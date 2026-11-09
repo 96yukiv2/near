@@ -19,6 +19,20 @@ function setup() {
 }
 
 describe("linked account deletion", () => {
+  it("deletes the verified linked accounts in order", async () => {
+    const deps = setup();
+    expect(await deleteNearAccount("near-a", "valid", deps)).toBe("deleted");
+    expect(deps.verifyIdentity).toHaveBeenCalledWith("valid", "near-a");
+    expect(deps.deleteSupabaseUser).toHaveBeenCalledExactlyOnceWith(
+      "supabase-a",
+    );
+    expect(deps.deleteBetterUser).toHaveBeenCalledExactlyOnceWith("near-a");
+    expect(
+      vi.mocked(deps.deleteSupabaseUser).mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      vi.mocked(deps.deleteBetterUser).mock.invocationCallOrder[0]!,
+    );
+  });
   it("does not delete either user without a matching verified identity", async () => {
     const deps = setup();
     expect(await deleteNearAccount("near-a", "invalid", deps)).toBe(

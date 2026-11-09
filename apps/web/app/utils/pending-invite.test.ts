@@ -27,6 +27,14 @@ describe("pending friend invitation", () => {
     clearPendingInvite(storage);
     expect(getPendingInvite(storage, 2000)).toBe("");
   });
+  it("replaces a previous pending invitation with the latest valid one", () => {
+    const storage = memoryStorage();
+    const first = "ab".repeat(32);
+    const second = "cd".repeat(32);
+    savePendingInvite(storage, first, 1000);
+    savePendingInvite(storage, second, 2000);
+    expect(getPendingInvite(storage, 3000)).toBe(second);
+  });
   it("rejects malformed or expired invitations and handles blocked storage", () => {
     const storage = memoryStorage();
     expect(savePendingInvite(storage, "bad", 0)).toBe(false);
