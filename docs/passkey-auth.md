@@ -22,6 +22,17 @@ npm run test:passkey
 
 CI では認証・削除の重要な判定を単体テストし、位置情報はローカル Supabase に API を直接呼んで権限を検証します。画面の全体確認は Vercel のプレビューなどで行います。Nuxt と PostgreSQL の結合テストが必要な場合は、空のローカル `near_browser_test` DB と `NEAR_TEST_POSTGRES_URL` を用意し、`npm run build` 後に `npm run test:auth-browser` を実行できます。
 
+## Supabase 用 OIDC クライアントの登録
+
+認証 DB のマイグレーションとサーバー用接続の準備後、信頼する自分の Supabase プロジェクト用に一度だけ登録します。以下を安全な実行環境の環境変数に設定し、`npm run auth:register-oidc-client` を実行してください。
+
+- `NEAR_AUTH_DATABASE_URL`: 認証 DB の接続文字列。秘密情報です。
+- `NEAR_OIDC_CLIENT_ID`: Supabase のカスタム OIDC 設定にも指定するクライアント ID。
+- `NEAR_OIDC_CLIENT_SECRET`: 同じく Supabase に設定する 32 文字以上の秘密値。秘密情報です。
+- `NEAR_SUPABASE_URL`: Supabase プロジェクトの URL（例: `https://<project-ref>.supabase.co`）。
+
+秘密情報をリポジトリにコミットしたり、チャットに貼ったりしないでください。登録されるリダイレクト先は指定した Supabase URL の `/auth/v1/callback` に限定され、秘密値はハッシュ化されます。既存のクライアント ID は上書きしません。Supabase 側では同じ ID と秘密値を設定し、メール属性を任意、PKCE を有効にします。Supabase から Better Auth の issuer にアクセスできる必要があるため、認証保護された Vercel プレビュー URL をそのまま issuer には使えません。
+
 ## 有効化前の残作業
 
 1. Supabase Auth にメール省略可能なカスタム OIDC プロバイダーを登録し、Better Auth へ接続する。認証情報を Vercel のサーバー環境に設定し、ログインを実際に検証する。
