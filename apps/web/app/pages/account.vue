@@ -4,10 +4,12 @@ import {
   type Session,
   type SupabaseClient,
 } from "@supabase/supabase-js";
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { createAuthClient } from "better-auth/vue";
+import { passkeyClient } from "@better-auth/passkey/client";
 
 const config = useRuntimeConfig();
-const client = ref<SupabaseClient | null>(null);
+const client = shallowRef<SupabaseClient | null>(null);
 const session = ref<Session | null>(null);
 const email = ref("");
 const password = ref("");
@@ -130,8 +132,73 @@ async function signOut() {
   const { error } = await client.value.auth.signOut();
   if (error) errorMessage.value = "ログアウトできませんでした。";
   else {
+    if (String(config.public.nearPasskeyEnabled) === "true") {
+      const result = await createAuthClient().signOut();
+      if (result.error) {
+        errorMessage.value = "認証サービスからログアウトできませんでした。";
+        return;
+      }
+    }
     displayName.value = "";
     message.value = "ログアウトしました。";
+  }
+}
+async function deleteAccount() {
+  if (!client.value || !session.value || busy.value) return;
+  const confirmation = window.prompt(
+    "アカウント、友達関係、位置情報を削除します。元には戻せません。続けるには「削除」と入力してください。",
+  );
+  if (confirmation !== "削除") return;
+  busy.value = true;
+  errorMessage.value = "";
+  message.value = "";
+  try {
+    if (String(config.public.nearPasskeyEnabled) === "true") {
+      const auth = createAuthClient({ plugins: [passkeyClient()] });
+      const verified = await auth.signIn.passkey();
+      const linked = session.value.user.identities?.some(
+        (identity) =>
+          identity.provider === "custom:near" &&
+          identity.identity_data?.sub === verified.data?.user?.id,
+      );
+      if (verified.error || !linked) {
+        errorMessage.value =
+          "ログイン中のアカウントのパスキーを確認してください。";
+        return;
+      }
+      const removed = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.value.access_token}` },
+      });
+      if (!removed.ok) throw new Error("Deletion failed");
+      await client.value.auth.signOut({ scope: "local" });
+      session.value = null;
+      displayName.value = "";
+      message.value = "アカウントを削除しました。";
+      return;
+    }
+    const { error } = await client.value.functions.invoke("delete-account", {
+      body: {},
+    });
+    if (error) {
+      if (error.context instanceof Response && error.context.status === 403) {
+        errorMessage.value =
+          "安全のため、ログアウトして再ログインした後に削除してください。";
+      } else {
+        errorMessage.value =
+          "削除を完了できませんでした。通信を確認し、もう一度お試しください。";
+      }
+      return;
+    }
+    await client.value.auth.signOut({ scope: "local" });
+    session.value = null;
+    displayName.value = "";
+    message.value = "アカウントを削除しました。";
+  } catch {
+    errorMessage.value =
+      "削除の結果を確認できません。ログイン状態を確認してください。";
+  } finally {
+    busy.value = false;
   }
 }
 async function googleLogin() {
@@ -141,6 +208,14 @@ async function googleLogin() {
     options: { redirectTo: redirectUrl() },
   });
   if (error) errorMessage.value = "Googleログインを開始できませんでした。";
+}
+async function passkeyLogin() {
+  if (!client.value) return;
+  const { error } = await client.value.auth.signInWithOAuth({
+    provider: "custom:near",
+    options: { redirectTo: redirectUrl(), scopes: "openid" },
+  });
+  if (error) errorMessage.value = "パスキー認証を開始できませんでした。";
 }
 </script>
 
@@ -162,7 +237,7 @@ async function googleLogin() {
         <p v-if="message" class="account-alert" role="status">{{ message }}</p>
         <p v-if="!ready">読み込み中…</p>
         <template v-else-if="session && mode !== 'recovery'">
-          <p class="account-intro">{{ session.user.email }} でログイン中</p>
+          <p class="account-intro">ログイン中</p>
           <form @submit.prevent="saveProfile">
             <label for="display-name">表示名</label>
             <input
@@ -179,7 +254,35 @@ async function googleLogin() {
           <button class="link-button" type="button" @click="signOut">
             ログアウト
           </button>
+          <RecoveryEmailSettings
+            v-if="
+              client &&
+              String(config.public.nearPasskeyEnabled) === 'true' &&
+              String(config.public.nearRecoveryEnabled) === 'true'
+            "
+            :supabase="client"
+          />
+          <div class="account-danger">
+            <h2>アカウントの削除</h2>
+            <p>
+              アカウント、友達関係、保存された位置情報を削除します。削除後は元に戻せません。
+            </p>
+            <button type="button" :disabled="busy" @click="deleteAccount">
+              アカウントを削除
+            </button>
+          </div>
         </template>
+        <div v-else-if="String(config.public.nearPasskeyEnabled) === 'true'">
+          <p class="account-intro">パスキーを使ってログインできます。</p>
+          <button
+            class="primary-button"
+            type="button"
+            :disabled="!client"
+            @click="passkeyLogin"
+          >
+            パスキーではじめる
+          </button>
+        </div>
         <form v-else @submit.prevent="submit">
           <template v-if="mode !== 'recovery'">
             <label for="email">メールアドレス</label>
@@ -218,7 +321,10 @@ async function googleLogin() {
             }}
           </button>
           <button
-            v-if="mode === 'login' && config.public.googleAuthEnabled === true"
+            v-if="
+              mode === 'login' &&
+              String(config.public.googleAuthEnabled) === 'true'
+            "
             class="secondary-button"
             type="button"
             @click="googleLogin"
@@ -260,8 +366,10 @@ async function googleLogin() {
             </button>
           </div>
         </form>
-        <a class="back-link" href="/">← デモ地図に戻る</a>
+        <a v-if="session" class="back-link" href="/friends">友達を追加する →</a>
+        <a class="back-link" href="/">← マップに戻る</a>
       </section>
     </div>
+    <AppNav active="account" />
   </main>
 </template>
