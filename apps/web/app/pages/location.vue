@@ -10,6 +10,7 @@ import {
 } from "../composables/useLocationMap";
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { formatLocationTime, isLocationStale } from "../utils/location";
+import { getProfileIcon } from "../utils/profile-icon";
 
 type Location = MapLocation;
 type LocationState = { sharing: boolean; locations: Location[] };
@@ -46,6 +47,15 @@ function isStale(location: Location) {
 }
 function formatDate(value: string) {
   return formatLocationTime(value, clock.value);
+}
+function focusLocation(location: Location) {
+  locationMap.focus(location);
+  mapElement.value?.scrollIntoView({
+    behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? "auto"
+      : "smooth",
+    block: "start",
+  });
 }
 function getPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) =>
@@ -237,11 +247,9 @@ onBeforeUnmount(() => {
     </header>
     <section class="location-content">
       <div class="location-panel">
-        <span class="section-kicker">YOUR LOCATION</span>
-        <h1>みんなの現在地。</h1>
-        <p class="account-intro">
-          承認した友達とだけ、今いる場所を共有できます。
-        </p>
+        <span class="section-kicker">YOUR LITTLE CIRCLE ✳</span>
+        <h1>みんな、どこかな？</h1>
+        <p class="account-intro">つながっている友達だけの、ちいさな地図。</p>
         <p v-if="errorMessage" class="account-alert error" role="alert">
           {{ errorMessage }}
         </p>
@@ -258,9 +266,7 @@ onBeforeUnmount(() => {
                 statusUncertain ? "確認できません" : sharing ? "オン" : "オフ"
               }}</strong
             >
-            <p>
-              共有は初期状態でオフです。停止すると保存された位置も削除されます。
-            </p>
+            <p>共有はいつでもオン・オフできます。</p>
             <button
               v-if="!sharing && !statusUncertain"
               class="primary-button"
@@ -284,30 +290,58 @@ onBeforeUnmount(() => {
                 位置共有を停止
               </button></template
             >
-            <p>
-              位置の送信はこのページを開いている間のみ行います。閉じても共有は停止せず、最後の位置が残ります。停止するにはボタンを押してください。
-            </p>
+            <details class="sharing-details">
+              <summary>共有について</summary>
+              <p>
+                位置はこの画面を開いている間だけ更新します。画面を閉じても共有は停止せず、最後の位置が残ります。停止すると保存済みの位置は削除されます。
+              </p>
+            </details>
           </div>
           <div class="friend-section">
             <h2>
-              表示できる位置 <span>{{ locations.length }}</span>
+              みんなの現在地 <span>{{ locations.length }}</span>
             </h2>
             <p v-if="!locations.length">共有中の位置はまだありません。</p>
-            <div v-for="item in locations" :key="item.id" class="location-row">
-              <strong
-                >{{ item.name }}
-                <small v-if="item.id === session.user.id"
-                  >（自分）</small
-                ></strong
-              ><span :class="{ old: isStale(item) }"
-                >{{ isStale(item) ? "更新が古い・" : ""
-                }}{{ formatDate(item.updated_at) }} 更新</span
-              ><span>精度 約{{ Math.round(item.accuracy_m) }} m</span>
+            <p v-if="locations.length" class="location-hint">
+              名前をタップすると地図が移動します。
+            </p>
+            <div class="location-people">
+              <button
+                v-for="item in locations"
+                :key="item.id"
+                class="location-row"
+                type="button"
+                :aria-label="`${item.name}の位置を地図で見る`"
+                @click="focusLocation(item)"
+              >
+                <span
+                  class="person-avatar"
+                  :style="{ '--avatar-color': getProfileIcon(item.icon).color }"
+                  aria-hidden="true"
+                  >{{ getProfileIcon(item.icon).symbol }}</span
+                >
+                <span class="location-person">
+                  <strong
+                    >{{ item.name }}
+                    <small v-if="item.id === session.user.id"
+                      >（自分）</small
+                    ></strong
+                  >
+                  <span :class="{ old: isStale(item) }"
+                    >{{ isStale(item) ? "更新が古い・" : ""
+                    }}{{ formatDate(item.updated_at) }} 更新 · 精度 約{{
+                      Math.round(item.accuracy_m)
+                    }}
+                    m</span
+                  >
+                </span>
+                <span class="location-arrow" aria-hidden="true">↗</span>
+              </button>
             </div>
           </div>
         </template>
-        <p class="account-intro">
-          地図の表示にはOpenStreetMapを利用します。地図を表示すると、提供元にIPアドレスと表示範囲が送られます。
+        <p class="map-privacy">
+          地図の表示時、OpenStreetMap に IP アドレスと表示範囲が送られます。
         </p>
       </div>
       <div

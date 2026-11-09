@@ -5,13 +5,14 @@ import {
   type SupabaseClient,
 } from "@supabase/supabase-js";
 import { onBeforeUnmount, onMounted, ref } from "vue";
+import { getProfileIcon } from "../utils/profile-icon";
 import {
   clearPendingInvite,
   getPendingInvite,
   savePendingInvite,
 } from "../utils/pending-invite";
 
-type Person = { id: string; name: string };
+type Person = { id: string; name: string; icon?: string };
 type Request = { id: string; user_id: string; name: string };
 type Relationships = {
   friends: Person[];
@@ -241,7 +242,17 @@ async function copyInvite() {
               :key="friend.id"
               class="relation-row"
             >
-              <strong>{{ friend.name }}</strong>
+              <div class="friend-identity">
+                <span
+                  class="friend-avatar"
+                  :style="{
+                    '--avatar-color': getProfileIcon(friend.icon).color,
+                  }"
+                  aria-hidden="true"
+                  >{{ getProfileIcon(friend.icon).symbol }}</span
+                >
+                <strong>{{ friend.name }}</strong>
+              </div>
               <div>
                 <button :disabled="busy" @click="act('remove', friend.id)">
                   削除</button

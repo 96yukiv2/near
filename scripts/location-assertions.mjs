@@ -38,11 +38,32 @@ export async function checkLocationPermissions(
   await denied(anonymous, "list");
   await denied(a, "update", dummy);
   await denied(a, "start", { ...dummy, latitude: 91 });
+  assert.ifError(
+    (await a.from("profiles").update({ icon: "frog" }).eq("id", ids[0])).error,
+  );
+  assert.ok(
+    (await a.from("profiles").update({ icon: "invalid" }).eq("id", ids[0]))
+      .error,
+  );
+  const otherUpdate = await b
+    .from("profiles")
+    .update({ icon: "cat" })
+    .eq("id", ids[0])
+    .select();
+  assert.ifError(otherUpdate.error);
+  assert.equal(otherUpdate.data.length, 0);
   await ok(a, "start", dummy);
   assert.equal((await ok(a, "list")).locations.length, 1);
   assert.equal((await ok(b, "list")).locations.length, 0);
   await friends(a, "accept", { target: request });
-  assert.equal((await ok(b, "list")).locations[0].id, ids[0]);
+  assert.equal(
+    (await friends(b, "list")).friends.find((friend) => friend.id === ids[0])
+      .icon,
+    "frog",
+  );
+  const visibleFriend = (await ok(b, "list")).locations[0];
+  assert.equal(visibleFriend.id, ids[0]);
+  assert.equal(visibleFriend.icon, "frog");
   const otherInvite = await friends(b, "create_invite");
   await friends(c, "request", { token: otherInvite.token });
   const pendingB = await friends(b, "list");

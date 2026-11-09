@@ -1,8 +1,10 @@
 import type { Map as MapLibreMap, Marker as MapLibreMarker } from "maplibre-gl";
+import { getProfileIcon } from "../utils/profile-icon";
 
 export type MapLocation = {
   id: string;
   name: string;
+  icon?: string;
   latitude: number;
   longitude: number;
   accuracy_m: number;
@@ -33,7 +35,18 @@ export function useLocationMap() {
             maxzoom: 19,
           },
         },
-        layers: [{ id: "osm", type: "raster", source: "osm" }],
+        layers: [
+          {
+            id: "osm",
+            type: "raster",
+            source: "osm",
+            paint: {
+              "raster-saturation": -0.32,
+              "raster-contrast": -0.13,
+              "raster-brightness-min": 0.06,
+            },
+          },
+        ],
       },
       center: [139.7, 35.66],
       zoom: 4,
@@ -63,18 +76,12 @@ export function useLocationMap() {
     markers = locations.map((location) => {
       const element = document.createElement("button");
       element.className = "map-marker";
-      element.style.setProperty(
-        "--marker-color",
-        location.id === ownId ? "#82b993" : "#ffad91",
-      );
-      element.textContent = Array.from(location.name)[0] ?? "•";
+      const icon = getProfileIcon(location.icon);
+      element.style.setProperty("--marker-color", icon.color);
+      element.textContent = icon.symbol;
+      if (location.id === ownId) element.classList.add("own-marker");
       element.setAttribute("aria-label", `${location.name}の位置`);
-      element.addEventListener("click", () =>
-        map?.flyTo({
-          center: [location.longitude, location.latitude],
-          zoom: 12,
-        }),
-      );
+      element.addEventListener("click", () => focus(location));
       return new maplibre.Marker({ element })
         .setLngLat([location.longitude, location.latitude])
         .addTo(map!);
@@ -87,11 +94,25 @@ export function useLocationMap() {
       map.fitBounds(bounds, { padding: 80, maxZoom: 13, duration: 0 });
     }
   }
+  function focus(location: MapLocation) {
+    if (
+      !map ||
+      !Number.isFinite(location.longitude) ||
+      !Number.isFinite(location.latitude)
+    )
+      return;
+    map.flyTo({
+      center: [location.longitude, location.latitude],
+      zoom: Math.max(map.getZoom(), 12),
+      duration: 1300,
+      essential: false,
+    });
+  }
   function destroy() {
     disposed = true;
     clear();
     map?.remove();
     map = undefined;
   }
-  return { initialize, render, clear, destroy };
+  return { initialize, render, focus, clear, destroy };
 }
