@@ -39,7 +39,7 @@ describe("account deletion authorization", () => {
   it("requires a recent authentication in this session, not a token refresh", async () => {
     const remove = vi.fn();
     const handler = createDeleteAccountHandler({
-      getUser: async () => ({ id: "a" }),
+      getUser: async () => ({ id: "a", identities: [{ provider: "email" }] }),
       deleteUser: remove,
       now: () => now,
     });
@@ -52,10 +52,26 @@ describe("account deletion authorization", () => {
     expect((await handler(request(token({ user: "b" })))).status).toBe(403);
     expect(remove).not.toHaveBeenCalled();
   });
+  it("rejects passkey and unverifiable identity records to prevent partial deletion", async () => {
+    const remove = vi.fn();
+    for (const identities of [
+      [{ provider: "custom:near" }],
+      [{ provider: "email" }, { provider: "custom:near" }],
+      undefined,
+    ]) {
+      const handler = createDeleteAccountHandler({
+        getUser: async () => ({ id: "a", identities }),
+        deleteUser: remove,
+        now: () => now,
+      });
+      expect((await handler(request(token()))).status).toBe(403);
+    }
+    expect(remove).not.toHaveBeenCalled();
+  });
   it("deletes only the authenticated account, ignoring a supplied target", async () => {
     const remove = vi.fn(async () => true);
     const handler = createDeleteAccountHandler({
-      getUser: async () => ({ id: "a" }),
+      getUser: async () => ({ id: "a", identities: [{ provider: "email" }] }),
       deleteUser: remove,
       now: () => now,
     });
@@ -66,7 +82,7 @@ describe("account deletion authorization", () => {
   });
   it("reports failures rather than claiming the account was deleted", async () => {
     const handler = createDeleteAccountHandler({
-      getUser: async () => ({ id: "a" }),
+      getUser: async () => ({ id: "a", identities: [{ provider: "email" }] }),
       deleteUser: async () => false,
       now: () => now,
     });
