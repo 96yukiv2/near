@@ -24,6 +24,7 @@ export function createNearAuthOptions(settings: {
   revokePriorPasskeys?: (
     userId: string,
     keepPasskeyId: string,
+    sessionId: string,
   ) => Promise<void>;
   sendVerificationOTP?: (message: {
     email: string;
@@ -96,12 +97,15 @@ export function createNearAuthOptions(settings: {
         )
           return;
         const session = await getSessionFromCtx(ctx);
-        if (session && (await settings.hasPasskey(session.user.id))) {
+        if (session) {
+          const hasCredential = await settings.hasPasskey(session.user.id);
+          const method = session.session.nearAuthMethod;
           if (
+            (method === "recovery" || hasCredential) &&
             !isRecentAuth(
-              session.session.nearAuthMethod,
+              method,
               session.session.createdAt,
-              "recovery",
+              "recovery_verified",
             )
           )
             throw new APIError("FORBIDDEN", {
@@ -112,11 +116,12 @@ export function createNearAuthOptions(settings: {
       after: createAuthMiddleware(async (ctx) => {
         if (ctx.path !== "/passkey/verify-registration") return;
         const current = await getSessionFromCtx(ctx);
-        if (current?.session.nearAuthMethod !== "recovery") return;
+        if (current?.session.nearAuthMethod !== "recovery_verified") return;
         await completePasskeyRecovery(
           current.session.nearAuthMethod,
           current.user.id,
           ctx.context.returned,
+          current.session.id,
           settings.revokePriorPasskeys,
         );
       }),

@@ -14,6 +14,8 @@ const busy = ref(false);
 const errorMessage = ref("");
 const recoveryEmail = ref("");
 const recoveryCode = ref("");
+const savedRecoveryCode = ref("");
+const recoveryCodeVerified = ref(false);
 const recoveryStarted = ref(false);
 const recoverySent = ref(false);
 const recoveryAuthenticated = ref(false);
@@ -75,6 +77,17 @@ async function recover() {
         if (result.error) throw result.error;
         recoveryCode.value = "";
         recoveryAuthenticated.value = true;
+        return;
+      }
+      if (!recoveryCodeVerified.value) {
+        const response = await fetch("/api/recovery/verify", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ code: savedRecoveryCode.value.trim() }),
+        });
+        if (!response.ok) throw new Error("Invalid recovery code");
+        savedRecoveryCode.value = "";
+        recoveryCodeVerified.value = true;
       }
       const passkey = await auth.passkey.addPasskey();
       if (passkey.error) throw passkey.error;
@@ -175,8 +188,17 @@ async function retryDeletion() {
                 required
               />
             </template>
+            <template v-if="recoveryAuthenticated && !recoveryCodeVerified">
+              <label for="saved-recovery-code">保存した復旧コード</label>
+              <input
+                id="saved-recovery-code"
+                v-model="savedRecoveryCode"
+                autocomplete="off"
+                required
+              />
+            </template>
             <p v-if="recoveryAuthenticated">
-              新しいパスキーを登録すると、以前のパスキーは使えなくなります。
+              復旧コードを使って新しいパスキーを登録すると、以前のパスキーは使えなくなります。
             </p>
             <button class="secondary-button" type="submit" :disabled="busy">
               {{

@@ -13,6 +13,7 @@ const pending = ref(false);
 const busy = ref(false);
 const message = ref("");
 const error = ref("");
+const recoveryCode = ref("");
 
 async function submit() {
   if (busy.value) return;
@@ -45,11 +46,37 @@ async function submit() {
       email.value = "";
       code.value = "";
       pending.value = false;
-      message.value = "復旧用メールを登録しました。";
+      message.value =
+        "復旧用メールを登録しました。続けて復旧コードを発行してください。";
     }
   } catch {
     error.value =
       "登録できませんでした。ログイン中のアカウントと入力内容を確認してください。";
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function issueRecoveryCode() {
+  if (busy.value) return;
+  busy.value = true;
+  error.value = "";
+  recoveryCode.value = "";
+  try {
+    const verified = await auth.signIn.passkey();
+    if (verified.error) throw verified.error;
+    const current = await props.supabase.auth.getSession();
+    if (!current.data.session) throw new Error("session");
+    const response = await fetch("/api/recovery/code", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${current.data.session.access_token}` },
+    });
+    if (!response.ok) throw new Error("code");
+    const result = (await response.json()) as { code: string };
+    recoveryCode.value = result.code;
+  } catch {
+    error.value =
+      "発行できませんでした。確認済みの復旧メールとログイン状態をご確認ください。";
   } finally {
     busy.value = false;
   }
@@ -88,5 +115,17 @@ async function submit() {
         {{ pending ? "確認する" : "パスキーで確認して登録" }}
       </button>
     </form>
+    <button
+      class="secondary-button"
+      type="button"
+      :disabled="busy"
+      @click="issueRecoveryCode"
+    >
+      復旧コードを発行・再発行
+    </button>
+    <p v-if="recoveryCode" role="status">
+      このコードは一度しか表示されません。メールとは別の安全な場所に保存してください。再発行すると前のコードは無効になります。
+      <strong>{{ recoveryCode }}</strong>
+    </p>
   </section>
 </template>
