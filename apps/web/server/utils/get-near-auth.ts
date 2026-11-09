@@ -40,10 +40,14 @@ export function getNearAuth(event: H3Event) {
         db.searchParams.delete(key);
       connectionString = db.toString();
     }
-    sendVerificationOTP = createRecoveryMailer(
-      String(config.nearAuthSmtpUrl),
-      String(config.nearAuthMailFrom),
-    );
+    if (String(config.nearAuthRecoveryEnabled) === "true") {
+      sendVerificationOTP = createRecoveryMailer(
+        String(config.nearAuthSmtpUrl),
+        String(config.nearAuthMailFrom),
+      );
+      if (!sendVerificationOTP)
+        throw new Error("Recovery email is not configured");
+    }
   } catch {
     throw createError({ statusCode: 503, statusMessage: "Auth unavailable" });
   }
