@@ -15,6 +15,8 @@ export default defineNuxtConfig({
       supabasePublishableKey: "",
       nearPasskeyEnabled: false,
       nearRecoveryEnabled: false,
+      mapStyleUrl:
+        "https://vector.openstreetmap.org/styles/shortbread/colorful.json",
     },
   },
   devtools: { enabled: false },
