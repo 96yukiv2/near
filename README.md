@@ -57,6 +57,6 @@ node --test scripts/test-profile-api.mjs scripts/test-friends-api.mjs scripts/te
 ## 構成
 
 - `apps/web`: Nuxt の Web アプリ
-- `apps/mobile`: 将来の Expo アプリ用
+- `apps/mobile`: Expo アプリの雛形（[Android 開発手順](apps/mobile/README.md)）
 - `supabase`: DB マイグレーション、RLS、Edge Functions
 - [設計](docs/design.md)・[今後のステップ](docs/roadmap.md)・[パスキー認証](docs/passkey-auth.md)

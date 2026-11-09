@@ -2,17 +2,19 @@
   "name": "near",
   "private": true,
   "workspaces": [
-    "apps/web"
+    "apps/web",
+    "apps/mobile"
   ],
   "scripts": {
     "dev": "npm run dev -w @near/web",
     "build": "npm run build -w @near/web",
-    "typecheck": "npm run typecheck -w @near/web",
+    "typecheck": "npm run typecheck -w @near/web && npm run typecheck -w @near/mobile",
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "auth:register-oidc-client": "node scripts/register-oidc-client.mjs"
+    "auth:register-oidc-client": "node scripts/register-oidc-client.mjs",
+    "dev:mobile": "npm run dev -w @near/mobile"
   },
   "devDependencies": {
     "@better-auth/oauth-provider": "1.7.18",
