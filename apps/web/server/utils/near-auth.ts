@@ -107,10 +107,18 @@ export function createNearAuthOptions(settings: {
               session.session.createdAt,
               hasCredential,
             )
-          )
+          ) {
+            // Do not log user IDs, session data, passkeys, or OAuth parameters.
+            console.warn(
+              "[near-auth] passkey registration denied",
+              hasCredential
+                ? "existing-credential"
+                : "recovery-verification-required",
+            );
             throw new APIError("FORBIDDEN", {
               message: "Additional passkeys require a separate verified flow.",
             });
+          }
         }
       }),
       after: createAuthMiddleware(async (ctx) => {

@@ -34,11 +34,25 @@ async function begin(create: boolean) {
   try {
     if (create) {
       const current = await auth.getSession();
-      if (!current.data?.session) {
+      if (current.error) throw current.error;
+      if (current.data?.session) {
+        const passkeys = await auth.passkey.listUserPasskeys();
+        if (passkeys.error) throw passkeys.error;
+        if (passkeys.data?.length) {
+          errorMessage.value =
+            "登録済みのパスキーが見つかりました。「パスキーでログイン」をお試しください。";
+          return;
+        }
+      } else {
         const result = await auth.signIn.anonymous();
         if (result.error) throw result.error;
       }
       const result = await auth.passkey.addPasskey();
+      if (result.error?.status === 403) {
+        errorMessage.value =
+          "パスキー登録を続けられませんでした。登録済みの場合は「パスキーでログイン」をお試しください。";
+        return;
+      }
       if (result.error) throw result.error;
       await auth.signOut();
       const verified = await auth.signIn.passkey();
@@ -50,7 +64,7 @@ async function begin(create: boolean) {
     await continueAuthorization();
   } catch {
     errorMessage.value =
-      "認証を完了できませんでした。端末の設定を確認して、もう一度お試しください。";
+      "認証を完了できませんでした。LINEなどのアプリ内ブラウザの場合は、Safariで開いてもう一度お試しください。";
   } finally {
     busy.value = false;
   }
