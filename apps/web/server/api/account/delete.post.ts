@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { deleteNearAccount } from "../../utils/delete-near-account";
 import { getNearAuth } from "../../utils/get-near-auth";
 import { isRecentAuth } from "../../utils/near-auth-policy";
+import { RECOVERY_PREFIX } from "../../utils/recovery-code";
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event);
@@ -70,7 +71,20 @@ export default defineEventHandler(async (event) => {
       return !removed.error || removed.error.status === 404;
     },
     async deleteBetterUser(id) {
-      await database.query('delete from near_auth."user" where id = $1', [id]);
+      const client = await database.connect();
+      try {
+        await client.query("begin");
+        await client.query("delete from near_auth.verification where id = $1", [
+          RECOVERY_PREFIX + id,
+        ]);
+        await client.query('delete from near_auth."user" where id = $1', [id]);
+        await client.query("commit");
+      } catch (error) {
+        await client.query("rollback");
+        throw error;
+      } finally {
+        client.release();
+      }
       return true;
     },
   });

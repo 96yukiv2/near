@@ -3,7 +3,7 @@ const RECENT_AUTH_MS = 5 * 60_000;
 export function isRecentAuth(
   method: unknown,
   createdAt: Date | string | undefined,
-  expectedMethod: "passkey" | "recovery",
+  expectedMethod: "passkey" | "recovery" | "recovery_verified",
   now = Date.now(),
 ): boolean {
   if (method !== expectedMethod || !createdAt) return false;
@@ -26,7 +26,7 @@ export async function completePasskeyRecovery(
   revoke:
     ((userId: string, keepPasskeyId: string) => Promise<void>) | undefined,
 ): Promise<void> {
-  if (method !== "recovery") return;
+  if (method !== "recovery_verified") return;
   if (
     !result ||
     typeof result !== "object" ||
