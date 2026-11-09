@@ -2,7 +2,7 @@
 
 Better Auth を Nuxt のサーバーで動かし、Supabase Auth のカスタム OIDC プロバイダーにつなぐ構成です。初回登録に実メールアドレスを必要とせず、Better Auth 内部には配信できない `.invalid` 形式の仮 ID が保存されます。パスキーの秘密鍵は利用者の端末側にあります。
 
-**初期状態では認証・復旧の機能フラグは無効です。** 復旧は Supabase 側セッションの失効を含む検証・対応が完了するまで有効にしないでください。`NUXT_NEAR_AUTH_RECOVERY_ENABLED` はサーバー側、`NUXT_PUBLIC_NEAR_RECOVERY_ENABLED` は画面側のスイッチです。SMTP 情報を設定するだけではサーバーの復旧 API は有効になりません。従来の認証画面はパスキーフラグが無効な間残ります。
+**初期状態では認証・復旧の機能フラグは無効です。** 復旧は Supabase 側セッションの失効を含む検証・対応が完了するまで有効にしないでください。`NUXT_NEAR_AUTH_RECOVERY_ENABLED` はサーバー側、`NUXT_PUBLIC_NEAR_RECOVERY_ENABLED` は画面側のスイッチです。SMTP 情報を設定するだけではサーバーの復旧 API は有効になりません。パスキーフラグが無効の間はログイン準備中の画面を表示します。
 
 ## 実装と検証
 

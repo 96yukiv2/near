@@ -13,7 +13,6 @@ export default defineNuxtConfig({
     public: {
       supabaseUrl: "",
       supabasePublishableKey: "",
-      googleAuthEnabled: false,
       nearPasskeyEnabled: false,
       nearRecoveryEnabled: false,
     },
