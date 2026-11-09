@@ -1045,3 +1045,17 @@ h2 {
     padding-top: 14px;
   }
 }
+.friend-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.friend-avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  background: var(--avatar-color);
+  font-size: 20px;
+}

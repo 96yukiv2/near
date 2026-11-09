@@ -56,6 +56,11 @@ export async function checkLocationPermissions(
   assert.equal((await ok(a, "list")).locations.length, 1);
   assert.equal((await ok(b, "list")).locations.length, 0);
   await friends(a, "accept", { target: request });
+  assert.equal(
+    (await friends(b, "list")).friends.find((friend) => friend.id === ids[0])
+      .icon,
+    "frog",
+  );
   const visibleFriend = (await ok(b, "list")).locations[0];
   assert.equal(visibleFriend.id, ids[0]);
   assert.equal(visibleFriend.icon, "frog");
