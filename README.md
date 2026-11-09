@@ -23,6 +23,8 @@ npm run build
 
 `npm run format` で整形できます。CI は同じ検証を実行します。依存関係と GitHub Actions は Dependabot で週次更新します。
 
+パスキー認証は検証段階です。ブラウザを使うローカルテストと、公開までの未完了項目は [パスキー認証の検証](docs/passkey-auth.md) を参照してください。
+
 ## 構成と今後
 
 - `apps/web`: Nuxt のブラウザ版

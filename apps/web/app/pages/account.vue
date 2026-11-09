@@ -4,10 +4,12 @@ import {
   type Session,
   type SupabaseClient,
 } from "@supabase/supabase-js";
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { createAuthClient } from "better-auth/vue";
+import { passkeyClient } from "@better-auth/passkey/client";
 
 const config = useRuntimeConfig();
-const client = ref<SupabaseClient | null>(null);
+const client = shallowRef<SupabaseClient | null>(null);
 const session = ref<Session | null>(null);
 const email = ref("");
 const password = ref("");
@@ -130,6 +132,13 @@ async function signOut() {
   const { error } = await client.value.auth.signOut();
   if (error) errorMessage.value = "ログアウトできませんでした。";
   else {
+    if (String(config.public.nearPasskeyEnabled) === "true") {
+      const result = await createAuthClient().signOut();
+      if (result.error) {
+        errorMessage.value = "認証サービスからログアウトできませんでした。";
+        return;
+      }
+    }
     displayName.value = "";
     message.value = "ログアウトしました。";
   }
@@ -144,6 +153,30 @@ async function deleteAccount() {
   errorMessage.value = "";
   message.value = "";
   try {
+    if (String(config.public.nearPasskeyEnabled) === "true") {
+      const auth = createAuthClient({ plugins: [passkeyClient()] });
+      const verified = await auth.signIn.passkey();
+      const linked = session.value.user.identities?.some(
+        (identity) =>
+          identity.provider === "custom:near" &&
+          identity.identity_data?.sub === verified.data?.user?.id,
+      );
+      if (verified.error || !linked) {
+        errorMessage.value =
+          "ログイン中のアカウントのパスキーを確認してください。";
+        return;
+      }
+      const removed = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.value.access_token}` },
+      });
+      if (!removed.ok) throw new Error("Deletion failed");
+      await client.value.auth.signOut({ scope: "local" });
+      session.value = null;
+      displayName.value = "";
+      message.value = "アカウントを削除しました。";
+      return;
+    }
     const { error } = await client.value.functions.invoke("delete-account", {
       body: {},
     });
@@ -175,6 +208,14 @@ async function googleLogin() {
     options: { redirectTo: redirectUrl() },
   });
   if (error) errorMessage.value = "Googleログインを開始できませんでした。";
+}
+async function passkeyLogin() {
+  if (!client.value) return;
+  const { error } = await client.value.auth.signInWithOAuth({
+    provider: "custom:near",
+    options: { redirectTo: redirectUrl(), scopes: "openid" },
+  });
+  if (error) errorMessage.value = "パスキー認証を開始できませんでした。";
 }
 </script>
 
@@ -213,6 +254,14 @@ async function googleLogin() {
           <button class="link-button" type="button" @click="signOut">
             ログアウト
           </button>
+          <RecoveryEmailSettings
+            v-if="
+              client &&
+              String(config.public.nearPasskeyEnabled) === 'true' &&
+              String(config.public.nearRecoveryEnabled) === 'true'
+            "
+            :supabase="client"
+          />
           <div class="account-danger">
             <h2>アカウントの削除</h2>
             <p>
@@ -223,6 +272,17 @@ async function googleLogin() {
             </button>
           </div>
         </template>
+        <div v-else-if="String(config.public.nearPasskeyEnabled) === 'true'">
+          <p class="account-intro">パスキーを使ってログインできます。</p>
+          <button
+            class="primary-button"
+            type="button"
+            :disabled="!client"
+            @click="passkeyLogin"
+          >
+            パスキーではじめる
+          </button>
+        </div>
         <form v-else @submit.prevent="submit">
           <template v-if="mode !== 'recovery'">
             <label for="email">メールアドレス</label>
