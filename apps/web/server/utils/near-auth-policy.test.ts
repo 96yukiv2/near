@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { isRecentAuth, mayIssueAuthorization } from "./near-auth-policy";
+import { describe, expect, it, vi } from "vitest";
+import {
+  completePasskeyRecovery,
+  isRecentAuth,
+  mayIssueAuthorization,
+} from "./near-auth-policy";
 
 describe("authentication policy", () => {
   it("issues authorization only for a passkey-authenticated user with a credential", () => {
@@ -21,5 +25,36 @@ describe("authentication policy", () => {
       false,
     );
     expect(isRecentAuth("passkey", "invalid", "passkey", now)).toBe(false);
+  });
+});
+
+describe("passkey recovery", () => {
+  it("keeps existing passkeys when registration fails or belongs to another user", async () => {
+    const revoke = vi.fn();
+    await completePasskeyRecovery("recovery", "alice", null, revoke);
+    await completePasskeyRecovery(
+      "recovery",
+      "alice",
+      { id: "new", userId: "bob" },
+      revoke,
+    );
+    await completePasskeyRecovery(
+      "passkey",
+      "alice",
+      { id: "new", userId: "alice" },
+      revoke,
+    );
+    expect(revoke).not.toHaveBeenCalled();
+  });
+
+  it("revokes only old passkeys after the new credential is saved", async () => {
+    const revoke = vi.fn();
+    await completePasskeyRecovery(
+      "recovery",
+      "alice",
+      { id: "new", userId: "alice" },
+      revoke,
+    );
+    expect(revoke).toHaveBeenCalledExactlyOnceWith("alice", "new");
   });
 });

@@ -7,7 +7,11 @@ import {
   getSessionFromCtx,
 } from "better-auth/api";
 import { anonymous, emailOTP, jwt } from "better-auth/plugins";
-import { isRecentAuth, mayIssueAuthorization } from "./near-auth-policy.ts";
+import {
+  completePasskeyRecovery,
+  isRecentAuth,
+  mayIssueAuthorization,
+} from "./near-auth-policy.ts";
 
 /** Shared by the server and the isolated browser test. No secrets belong here. */
 export function createNearAuthOptions(settings: {
@@ -17,7 +21,10 @@ export function createNearAuthOptions(settings: {
   rpID: string;
   origin: string;
   hasPasskey: (userId: string) => Promise<boolean>;
-  revokePriorPasskeys?: (userId: string) => Promise<void>;
+  revokePriorPasskeys?: (
+    userId: string,
+    keepPasskeyId: string,
+  ) => Promise<void>;
   sendVerificationOTP?: (message: {
     email: string;
     otp: string;
@@ -102,6 +109,17 @@ export function createNearAuthOptions(settings: {
             });
         }
       }),
+      after: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== "/passkey/verify-registration") return;
+        const current = await getSessionFromCtx(ctx);
+        if (current?.session.nearAuthMethod !== "recovery") return;
+        await completePasskeyRecovery(
+          current.session.nearAuthMethod,
+          current.user.id,
+          ctx.context.returned,
+          settings.revokePriorPasskeys,
+        );
+      }),
     },
     user: { deleteUser: { enabled: settings.allowTestDeletion === true } },
     plugins: [
@@ -109,17 +127,7 @@ export function createNearAuthOptions(settings: {
       passkey({
         rpID: settings.rpID,
         origin: settings.origin,
-        registration: {
-          afterVerification: async ({ ctx, user }) => {
-            const current = await getSessionFromCtx(ctx);
-            if (current?.session.nearAuthMethod !== "recovery") return;
-            if (!settings.revokePriorPasskeys || current.user.id !== user.id)
-              throw new APIError("FORBIDDEN", {
-                message: "Recovery unavailable.",
-              });
-            await settings.revokePriorPasskeys(user.id);
-          },
-        },
+        authenticatorSelection: { userVerification: "required" },
       }),
       ...(recovery
         ? [

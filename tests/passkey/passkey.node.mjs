@@ -31,8 +31,10 @@ before(async () => {
       !!database
         .prepare('SELECT 1 FROM passkey WHERE "userId" = ? LIMIT 1')
         .get(id),
-    revokePriorPasskeys: async (id) => {
-      database.prepare('DELETE FROM passkey WHERE "userId" = ?').run(id);
+    revokePriorPasskeys: async (id, keepId) => {
+      database
+        .prepare('DELETE FROM passkey WHERE "userId" = ? AND id <> ?')
+        .run(id, keepId);
     },
     async sendVerificationOTP({ email, otp, type }) {
       mailbox.set(`${type}:${email}`, otp);

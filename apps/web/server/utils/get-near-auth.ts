@@ -55,10 +55,10 @@ export function getNearAuth(event: H3Event) {
         );
         return result.rowCount === 1;
       },
-      async revokePriorPasskeys(userId) {
+      async revokePriorPasskeys(userId, keepPasskeyId) {
         await database.query(
-          'delete from near_auth.passkey where "userId" = $1',
-          [userId],
+          'delete from near_auth.passkey where "userId" = $1 and id <> $2',
+          [userId, keepPasskeyId],
         );
       },
     }),

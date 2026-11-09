@@ -17,3 +17,26 @@ export function mayIssueAuthorization(
 ): boolean {
   return method === "passkey" && hasPasskey;
 }
+
+/** Revoke old credentials only after a new credential is persisted for this user. */
+export async function completePasskeyRecovery(
+  method: unknown,
+  userId: string,
+  result: unknown,
+  revoke:
+    ((userId: string, keepPasskeyId: string) => Promise<void>) | undefined,
+): Promise<void> {
+  if (method !== "recovery") return;
+  if (
+    !result ||
+    typeof result !== "object" ||
+    !("id" in result) ||
+    typeof result.id !== "string" ||
+    !result.id ||
+    !("userId" in result) ||
+    result.userId !== userId
+  )
+    return;
+  if (!revoke) throw new Error("Recovery unavailable");
+  await revoke(userId, result.id);
+}
