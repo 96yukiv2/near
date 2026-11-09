@@ -14,7 +14,6 @@ export default defineNuxtConfig({
       supabaseUrl: "",
       supabasePublishableKey: "",
       mapStyleUrl: "",
-      googleAuthEnabled: false,
       nearPasskeyEnabled: false,
       nearRecoveryEnabled: false,
     },
