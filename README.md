@@ -6,7 +6,7 @@
 
 表示名とプリセットアイコン、招待・友達管理、位置共有と地図表示は実装済みです。友達の名前を選ぶと、その位置へ地図が移動します。アイコンには DB マイグレーションが必要です。位置共有は初期状態でオフです。ブラウザの位置画面を開いている間に更新し、画面を閉じた後も共有状態と最後の位置が残ります。停止するには「位置共有を停止」を押してください。
 
-パスキー登録・ログイン、任意の復旧メール、アカウント削除は実装されています。通常の Near ドメインではパスキー認証を有効にしていますが、実際の利用前には友達追加・位置共有・削除の確認が必要です。コードの既定値はパスキー認証オフで、Supabase の従来のメール・パスワード認証はまだ無効化されていません。復旧メールは未設定です。Google ログインは移行方針に含めず、既定で無効です。実際の友達と使う前に [今後のステップ](docs/roadmap.md) を完了してください。
+パスキー登録・ログイン、任意の復旧メール、アカウント削除は実装されています。通常の Near ドメインではパスキー認証を有効にしていますが、実際の利用前には友達追加・位置共有・削除の確認が必要です。コードの既定値はパスキー認証オフで、Supabase の従来のメール・パスワード認証はまだ無効化されていません。復旧メールは未設定です。Web の登録・ログイン画面はパスキー方式です。実際の友達と使う前に [今後のステップ](docs/roadmap.md) を完了してください。
 
 地図は OpenStreetMap の標準タイルを使います。提供元に IP アドレスと表示範囲が伝わります。[利用ポリシー](https://operations.osmfoundation.org/policies/tiles/)と無料枠・可用性を公開前に確認します。
 
@@ -25,7 +25,7 @@ npm run dev
 npx supabase start
 ```
 
-`apps/web/.env.example` を `apps/web/.env` にコピーし、`npx supabase status` のローカル API URL と publishable key（または anon key）を `NUXT_PUBLIC_SUPABASE_URL` と `NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` に設定します。ここには secret / service_role キーを入れません。初期状態では従来のメール・パスワード認証を利用し、ローカルのメール画面は `http://127.0.0.1:54324` です。作業終了時は `npx supabase stop` を実行します。
+`apps/web/.env.example` を `apps/web/.env` にコピーし、`npx supabase status` のローカル API URL と publishable key（または anon key）を `NUXT_PUBLIC_SUPABASE_URL` と `NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` に設定します。ここには secret / service_role キーを入れません。パスキー認証は初期状態で無効のため、ローカルで画面からログインするには [設定手順](docs/passkey-auth.md) に従って認証基盤を用意します。作業終了時は `npx supabase stop` を実行します。
 
 パスキー認証の設定と制約は [パスキー認証](docs/passkey-auth.md) を参照してください。`.env` や Vercel の環境変数には実際の秘密値を含むことがあるため、リポジトリやチャットに貼りません。
 
