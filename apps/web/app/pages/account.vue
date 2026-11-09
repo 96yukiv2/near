@@ -7,6 +7,11 @@ import {
 import { onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import { createAuthClient } from "better-auth/vue";
 import { passkeyClient } from "@better-auth/passkey/client";
+import {
+  getProfileIcon,
+  profileIcons,
+  type ProfileIcon,
+} from "../utils/profile-icon";
 
 const config = useRuntimeConfig();
 const client = shallowRef<SupabaseClient | null>(null);
@@ -14,6 +19,8 @@ const session = ref<Session | null>(null);
 const email = ref("");
 const password = ref("");
 const displayName = ref("");
+const profileIcon = ref<ProfileIcon>("sun");
+const profileIconsAvailable = ref(true);
 const mode = ref<"login" | "signup" | "reset" | "recovery">("login");
 const message = ref("");
 const errorMessage = ref("");
@@ -24,13 +31,29 @@ const redirectUrl = () => `${window.location.origin}/account`;
 
 async function loadProfile() {
   if (!client.value || !session.value) return;
-  const { data, error } = await client.value
+  const result = await client.value
     .from("profiles")
-    .select("display_name")
+    .select("display_name, icon")
     .eq("id", session.value.user.id)
     .maybeSingle();
-  if (error) errorMessage.value = "プロフィールを読み込めませんでした。";
-  else displayName.value = data?.display_name ?? "";
+  if (result.error && ["42703", "PGRST204"].includes(result.error.code)) {
+    // A preview may run before the additive icon migration is applied.
+    profileIconsAvailable.value = false;
+    const fallback = await client.value
+      .from("profiles")
+      .select("display_name")
+      .eq("id", session.value.user.id)
+      .maybeSingle();
+    if (fallback.error)
+      errorMessage.value = "プロフィールを読み込めませんでした。";
+    else displayName.value = fallback.data?.display_name ?? "";
+  } else if (result.error)
+    errorMessage.value = "プロフィールを読み込めませんでした。";
+  else {
+    profileIconsAvailable.value = true;
+    displayName.value = result.data?.display_name ?? "";
+    profileIcon.value = getProfileIcon(result.data?.icon).id;
+  }
 }
 
 onMounted(async () => {
@@ -117,13 +140,14 @@ async function saveProfile() {
   const { error } = await client.value.from("profiles").upsert({
     id: session.value.user.id,
     display_name: name,
+    ...(profileIconsAvailable.value ? { icon: profileIcon.value } : {}),
     updated_at: new Date().toISOString(),
   });
   if (error)
     errorMessage.value = "保存できませんでした。もう一度お試しください。";
   else {
     displayName.value = name;
-    message.value = "表示名を保存しました。";
+    message.value = "プロフィールを保存しました。";
   }
   busy.value = false;
 }
@@ -255,8 +279,32 @@ async function passkeyLogin() {
               required
               placeholder="なんて呼ばれたい？"
             />
+            <fieldset class="icon-picker" :disabled="!profileIconsAvailable">
+              <legend>アイコン</legend>
+              <div class="icon-options">
+                <label
+                  v-for="icon in profileIcons"
+                  :key="icon.id"
+                  class="icon-option"
+                  :style="{ '--icon-color': icon.color }"
+                  :title="icon.label"
+                >
+                  <input
+                    v-model="profileIcon"
+                    type="radio"
+                    name="profile-icon"
+                    :value="icon.id"
+                    :aria-label="icon.label"
+                  />
+                  <span aria-hidden="true">{{ icon.symbol }}</span>
+                </label>
+              </div>
+            </fieldset>
+            <p v-if="!profileIconsAvailable" class="account-intro">
+              アイコンの設定は準備中です。
+            </p>
             <button class="primary-button" :disabled="busy">
-              表示名を保存
+              プロフィールを保存
             </button>
           </form>
           <button class="link-button" type="button" @click="signOut">
