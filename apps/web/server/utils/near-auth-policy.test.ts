@@ -3,6 +3,7 @@ import {
   completePasskeyRecovery,
   isRecentAuth,
   mayIssueAuthorization,
+  mayRegisterPasskey,
 } from "./near-auth-policy";
 
 describe("authentication policy", () => {
@@ -25,6 +26,31 @@ describe("authentication policy", () => {
       false,
     );
     expect(isRecentAuth("passkey", "invalid", "passkey", now)).toBe(false);
+  });
+});
+
+describe("passkey registration authorization", () => {
+  it("allows a fresh account or a recently verified recovery, never email-only recovery", () => {
+    const now = Date.parse("2026-01-01T00:10:00Z");
+    const fresh = new Date(now - 1000);
+    expect(mayRegisterPasskey("bootstrap", fresh, false, now)).toBe(true);
+    expect(mayRegisterPasskey("recovery", fresh, false, now)).toBe(false);
+    expect(mayRegisterPasskey("recovery", fresh, true, now)).toBe(false);
+    expect(mayRegisterPasskey("recovery_verified", fresh, true, now)).toBe(
+      true,
+    );
+    expect(
+      mayRegisterPasskey(
+        "recovery_verified",
+        new Date(now - 300001),
+        false,
+        now,
+      ),
+    ).toBe(false);
+    expect(mayRegisterPasskey("recovery_complete", fresh, false, now)).toBe(
+      false,
+    );
+    expect(mayRegisterPasskey("passkey", fresh, true, now)).toBe(false);
   });
 });
 

@@ -89,6 +89,16 @@ export function getNearAuth(event: H3Event) {
             'delete from near_auth.passkey where "userId" = $1 and id <> $2',
             [userId, keepPasskeyId],
           );
+          const completed = await client.query(
+            `update near_auth."session" set "nearAuthMethod" = 'recovery_complete' where id = $1 and "userId" = $2 and "nearAuthMethod" = 'recovery_verified'`,
+            [sessionId, userId],
+          );
+          if (completed.rowCount !== 1)
+            throw new Error("Recovery authorization expired");
+          await client.query(
+            'delete from near_auth."session" where "userId" = $1 and id <> $2',
+            [userId, sessionId],
+          );
           await client.query("commit");
         } catch (error) {
           await client.query("rollback");

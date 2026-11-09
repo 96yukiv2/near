@@ -11,6 +11,7 @@ import {
   completePasskeyRecovery,
   isRecentAuth,
   mayIssueAuthorization,
+  mayRegisterPasskey,
 } from "./near-auth-policy.ts";
 
 /** Shared by the server and the isolated browser test. No secrets belong here. */
@@ -100,13 +101,11 @@ export function createNearAuthOptions(settings: {
         const session = await getSessionFromCtx(ctx);
         if (session) {
           const hasCredential = await settings.hasPasskey(session.user.id);
-          const method = session.session.nearAuthMethod;
           if (
-            (method === "recovery" || hasCredential) &&
-            !isRecentAuth(
-              method,
+            !mayRegisterPasskey(
+              session.session.nearAuthMethod,
               session.session.createdAt,
-              "recovery_verified",
+              hasCredential,
             )
           )
             throw new APIError("FORBIDDEN", {
