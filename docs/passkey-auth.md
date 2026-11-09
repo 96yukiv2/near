@@ -17,10 +17,10 @@ Better Auth を Nuxt のサーバーで動かし、Supabase Auth のカスタム
 npm ci
 npx playwright install chromium
 npm test
-npm run test:passkey
+node --test tests/passkey/passkey.node.mjs
 ```
 
-CI では認証・削除の重要な判定を単体テストし、位置情報はローカル Supabase に API を直接呼んで権限を検証します。画面の全体確認は Vercel のプレビューなどで行います。Nuxt と PostgreSQL の結合テストが必要な場合は、空のローカル `near_browser_test` DB と `NEAR_TEST_POSTGRES_URL` を用意し、`npm run build` 後に `npm run test:auth-browser` を実行できます。
+認証・削除の単体テストと、位置情報を含む API 権限テストは一時的に CI では実行しません。公開前には再び実行し、権限を確認してください。画面の全体確認は Vercel のプレビューなどで行います。Nuxt と PostgreSQL の結合テストが必要な場合は、空のローカル `near_browser_test` DB と `NEAR_TEST_POSTGRES_URL` を用意し、`npm run build` 後に `node --test tests/passkey/nuxt.node.mjs` を実行できます。
 
 ## Supabase 用 OIDC クライアントの登録
 

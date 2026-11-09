@@ -210,12 +210,20 @@ async function googleLogin() {
   if (error) errorMessage.value = "Googleログインを開始できませんでした。";
 }
 async function passkeyLogin() {
-  if (!client.value) return;
-  const { error } = await client.value.auth.signInWithOAuth({
-    provider: "custom:near",
-    options: { redirectTo: redirectUrl(), scopes: "openid" },
-  });
-  if (error) errorMessage.value = "パスキー認証を開始できませんでした。";
+  if (!client.value || busy.value) return;
+  busy.value = true;
+  errorMessage.value = "";
+  try {
+    const { error } = await client.value.auth.signInWithOAuth({
+      provider: "custom:near",
+      options: { redirectTo: redirectUrl(), scopes: "openid" },
+    });
+    if (error) throw error;
+  } catch {
+    errorMessage.value = "パスキー認証を開始できませんでした。";
+  } finally {
+    busy.value = false;
+  }
 }
 </script>
 
@@ -229,7 +237,7 @@ async function passkeyLogin() {
       >
       <section class="account-card">
         <span class="section-kicker">YOUR LITTLE WORLD</span>
-        <h1>おかえりなさい。</h1>
+        <h1>Nearへようこそ。</h1>
         <p class="account-intro">友達とつながる準備をしましょう。</p>
         <p v-if="errorMessage" class="account-alert error" role="alert">
           {{ errorMessage }}
@@ -277,10 +285,10 @@ async function passkeyLogin() {
           <button
             class="primary-button"
             type="button"
-            :disabled="!client"
+            :disabled="!client || busy"
             @click="passkeyLogin"
           >
-            パスキーではじめる
+            {{ busy ? "認証画面へ移動中…" : "パスキーではじめる" }}
           </button>
         </div>
         <form v-else @submit.prevent="submit">

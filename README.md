@@ -39,7 +39,20 @@ npm test
 npm run build
 ```
 
-CI はこれらに加え、使い捨てのローカル Supabase に API を直接呼び出す権限テストを実行します。Dependabot は npm と GitHub Actions の更新を確認します。画面や実機の確認は Vercel などで行います。
+CI は lint、formatter、型チェック、ビルドを実行します。テストは一時的に CI から外しており、`npm test` で単体テストを実行できます。位置情報などの API 権限テストのファイルも `scripts/` に残しています。CI では安全性を自動確認しないため、実際の位置を共有する前に権限テストと実機確認が必要です。Dependabot は npm と GitHub Actions の更新を確認します。
+
+API 権限テストを手動で実行する場合は、Docker を用意し、使い捨てのローカル Supabase のみを使います。
+
+```sh
+npx supabase start
+eval "$(npx supabase status -o env)"
+export TEST_SUPABASE_URL="$API_URL"
+export TEST_SUPABASE_ANON_KEY="$ANON_KEY"
+export TEST_SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+node --test scripts/test-profile-api.mjs scripts/test-friends-api.mjs scripts/test-location-api.mjs
+```
+
+削除 API も確認する場合は、別のターミナルで `npx supabase functions serve delete-account` を起動し、同じ環境変数を設定したターミナルで `node --test scripts/test-delete-account-api.mjs` を実行します。これらのテストにはローカルの使い捨てキーだけを使い、秘密値をチャットやリポジトリに貼りません。
 
 ## 構成
 
