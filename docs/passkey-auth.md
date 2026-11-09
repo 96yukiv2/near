@@ -24,6 +24,8 @@ CI では認証・削除の重要な判定を単体テストし、位置情報�
 
 ## Supabase 用 OIDC クライアントの登録
 
+開発プロジェクト用には [手動登録 SQL](../supabase/manual/register-test-oidc.sql) も用意しています。SQL Editor の結果に一度だけ表示される秘密値を、Supabase のカスタム OIDC プロバイダーに直接入力します。秘密値をチャットやリポジトリに貼らないでください。本番プロジェクトでは使用しません。
+
 認証 DB のマイグレーションとサーバー用接続の準備後、信頼する自分の Supabase プロジェクト用に一度だけ登録します。以下を安全な実行環境の環境変数に設定し、`npm run auth:register-oidc-client` を実行してください。
 
 - `NEAR_AUTH_DATABASE_URL`: 認証 DB の接続文字列。秘密情報です。
