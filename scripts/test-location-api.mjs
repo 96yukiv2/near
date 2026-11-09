@@ -52,6 +52,27 @@ test("latest locations are available only to direct friends while sharing", asyn
         ids.splice(ids.indexOf(id), 1);
       },
     );
+    // A previously issued JWT must not keep accessing Near after its session
+    // is revoked, even if the JWT signature has not yet expired.
+    const session = (await users[1].auth.getSession()).data.session;
+    assert.ok(session);
+    const staleToken = session.access_token;
+    assert.ifError(
+      (await admin.auth.admin.signOut(staleToken, "global")).error,
+    );
+    const stale = createClient(url, key, {
+      ...options,
+      global: { headers: { Authorization: `Bearer ${staleToken}` } },
+    });
+    assert.ok(
+      (await stale.rpc("near_location_action", { action: "list" })).error,
+    );
+    assert.ok(
+      (await stale.rpc("near_friend_action", { action: "list" })).error,
+    );
+    const profile = await stale.from("profiles").select("id");
+    assert.ifError(profile.error);
+    assert.deepEqual(profile.data, []);
   } finally {
     for (const id of ids) await admin.auth.admin.deleteUser(id);
   }

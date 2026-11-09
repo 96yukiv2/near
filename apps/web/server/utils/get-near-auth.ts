@@ -89,6 +89,11 @@ export function getNearAuth(event: H3Event) {
           );
           if (consumed.rowCount !== 1)
             throw new Error("Recovery authorization expired");
+          // Revoke Supabase refresh sessions before completing recovery. The DB
+          // transaction keeps this atomic with rotating the passkey and code.
+          await client.query("select near_auth.revoke_supabase_sessions($1)", [
+            userId,
+          ]);
           await client.query(
             'delete from near_auth.passkey where "userId" = $1 and id <> $2',
             [userId, keepPasskeyId],
