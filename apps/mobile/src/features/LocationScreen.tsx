@@ -11,7 +11,10 @@ import {
   Camera,
   Map as MapView,
   ViewAnnotation,
+  TransformRequestManager,
   type CameraRef,
+  type MapRef,
+  type StyleSpecification,
 } from "@maplibre/maplibre-react-native";
 import * as Location from "expo-location";
 import { supabase } from "../lib/supabase";
@@ -43,8 +46,35 @@ const symbols: Record<string, string> = {
   bear: "🐻",
   star: "⭐",
 };
-const styleUrl =
-  "https://vector.openstreetmap.org/styles/shortbread/colorful.json";
+// Raster tiles include labels in the image and avoid incomplete glyph ranges in
+// the vector style. Keep attribution visible through MapLibre's control.
+TransformRequestManager.addHeader({
+  id: "near-osm-user-agent",
+  match: "^https://tile\\.openstreetmap\\.org/",
+  name: "User-Agent",
+  value: "Near/0.1 (+https://github.com/96yukiv2/near)",
+});
+const mapStyle: StyleSpecification = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution:
+        '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    },
+  },
+  layers: [
+    {
+      id: "osm",
+      type: "raster",
+      source: "osm",
+      paint: { "raster-saturation": -0.15, "raster-contrast": -0.08 },
+    },
+  ],
+};
 
 export function LocationScreen({
   userId,
@@ -58,6 +88,9 @@ export function LocationScreen({
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
   const camera = useRef<CameraRef>(null);
+  const map = useRef<MapRef>(null);
+  const centered = useRef(false);
+  const [mapReady, setMapReady] = useState(false);
   const sequence = useRef(0);
   const mounted = useRef(false);
   const currentId = useRef(userId);
@@ -88,6 +121,68 @@ export function LocationScreen({
       clearInterval(interval);
     };
   }, [refresh]);
+  useEffect(() => {
+    if (!mapReady || centered.current) return;
+    let cancelled = false;
+    const own = state?.locations.find((place) => place.id === userId);
+    async function centerInitial() {
+      if (own) {
+        centered.current = true;
+        camera.current?.jumpTo({
+          center: [own.longitude, own.latitude],
+          zoom: 13,
+        });
+        return;
+      }
+      const permission = await Location.getForegroundPermissionsAsync();
+      if (!permission.granted || cancelled || centered.current) return;
+      const position = await Location.getLastKnownPositionAsync({
+        maxAge: 24 * 60 * 60_000,
+      });
+      if (position && !cancelled && !centered.current) {
+        centered.current = true;
+        camera.current?.jumpTo({
+          center: [position.coords.longitude, position.coords.latitude],
+          zoom: 13,
+        });
+      }
+    }
+    void centerInitial().catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [mapReady, state, userId]);
+
+  async function focusCurrentLocation() {
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) {
+        setError("現在地を表示するには位置情報の許可が必要です。");
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      centered.current = true;
+      camera.current?.flyTo({
+        center: [position.coords.longitude, position.coords.latitude],
+        zoom: 14,
+        duration: 600,
+      });
+      setError("");
+    } catch {
+      setError(
+        "現在地を取得できませんでした。位置情報の設定を確認してください。",
+      );
+    }
+  }
+  async function zoomBy(delta: number) {
+    const zoom = await map.current?.getZoom();
+    if (zoom !== undefined)
+      camera.current?.zoomTo(Math.min(19, Math.max(2, zoom + delta)), {
+        duration: 250,
+      });
+  }
   async function start() {
     if (!supabase || busy) return;
     setBusy(true);
@@ -186,23 +281,56 @@ export function LocationScreen({
   }
   return (
     <View style={styles.container}>
-      <MapView style={styles.map} mapStyle={styleUrl}>
-        <Camera
-          ref={camera}
-          initialViewState={{ center: [139.7, 35.66], zoom: 4 }}
-        />
-        {state?.locations.map((p) => (
-          <ViewAnnotation
-            key={p.id}
-            id={p.id}
-            lngLat={[p.longitude, p.latitude]}
+      <View style={styles.mapFrame}>
+        <MapView
+          ref={map}
+          style={styles.map}
+          mapStyle={mapStyle}
+          onDidFinishLoadingMap={() => setMapReady(true)}
+        >
+          <Camera
+            ref={camera}
+            initialViewState={{ center: [139.7, 35.66], zoom: 4 }}
+          />
+          {state?.locations.map((p) => (
+            <ViewAnnotation
+              key={p.id}
+              id={p.id}
+              lngLat={[p.longitude, p.latitude]}
+            >
+              <View style={styles.pin}>
+                <Text>{symbols[p.icon ?? "sun"] ?? "☀️"}</Text>
+              </View>
+            </ViewAnnotation>
+          ))}
+        </MapView>
+        <View style={styles.mapControls}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="地図を拡大"
+            onPress={() => void zoomBy(1)}
+            style={styles.mapControl}
           >
-            <View style={styles.pin}>
-              <Text>{symbols[p.icon ?? "sun"] ?? "☀️"}</Text>
-            </View>
-          </ViewAnnotation>
-        ))}
-      </MapView>
+            <Text style={styles.mapControlText}>＋</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="地図を縮小"
+            onPress={() => void zoomBy(-1)}
+            style={styles.mapControl}
+          >
+            <Text style={styles.mapControlText}>−</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="現在地に移動"
+            onPress={() => void focusCurrentLocation()}
+            style={styles.mapControl}
+          >
+            <Text style={styles.mapControlText}>◎</Text>
+          </Pressable>
+        </View>
+      </View>
       <ScrollView style={styles.panel} contentContainerStyle={styles.content}>
         <Text style={styles.title}>みんなの現在地</Text>
         <Text style={styles.label}>
@@ -282,16 +410,34 @@ export function LocationScreen({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, minHeight: 650 },
-  map: { height: 350, borderRadius: 16, overflow: "hidden" },
-  panel: { maxHeight: 350 },
-  content: { gap: 12, paddingVertical: 16 },
+  container: { flex: 1, paddingHorizontal: 16, paddingTop: 10 },
+  mapFrame: {
+    flex: 1,
+    minHeight: 220,
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: "#e7f1eb",
+  },
+  map: { flex: 1 },
+  mapControls: { position: "absolute", top: 12, right: 12, gap: 6 },
+  mapControl: {
+    backgroundColor: "#fffdf9",
+    borderRadius: 14,
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 2,
+  },
+  mapControlText: { color: "#5a5964", fontSize: 22, fontWeight: "700" },
+  panel: { flexGrow: 0, maxHeight: "37%" },
+  content: { gap: 10, paddingVertical: 16 },
   title: { color: "#2f3441", fontSize: 22, fontWeight: "700" },
   label: { color: "#606879", fontSize: 14, lineHeight: 22 },
   error: { color: "#a83d30" },
   button: {
     backgroundColor: "#e76a53",
-    borderRadius: 14,
+    borderRadius: 18,
     padding: 12,
     alignItems: "center",
   },
