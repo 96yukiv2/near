@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
+  Linking,
   Pressable,
   ScrollView,
   Share,
@@ -18,6 +19,7 @@ import { signIn, supabase } from "./lib/supabase";
 import { friendAction, type Relationships } from "./features/friends";
 import { LocationScreen } from "./features/LocationScreen";
 import { stopBackgroundLocation } from "./features/location-task";
+import { parseInvitation } from "./features/invitation";
 
 const empty: Relationships = {
   friends: [],
@@ -45,6 +47,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("map");
   const [relations, setRelations] = useState<Relationships>(empty);
   const [name, setName] = useState("");
+  const [invitation, setInvitation] = useState("");
   const [icon, setIcon] = useState<string>("sun");
   const [message, setMessage] = useState("");
   const currentUser = useRef<string | null>(null);
@@ -87,6 +90,7 @@ export default function App() {
       else {
         void stopBackgroundLocation().catch(() => undefined);
         setRelations(empty);
+        setInvitation("");
         setName("");
         setIcon("sun");
       }
@@ -135,6 +139,24 @@ export default function App() {
       await Share.share({
         message: `${web.replace(/\/$/, "")}/friends#invite=${result.token}`,
       });
+    });
+  }
+  async function requestFriend() {
+    if (!supabase || !session) return;
+    const token = parseInvitation(invitation, process.env.EXPO_PUBLIC_WEB_URL);
+    if (!token) {
+      setMessage("Near の有効な招待リンクを入力してください。");
+      return;
+    }
+    if (!name.trim()) {
+      setMessage("先に設定画面で表示名を保存してください。");
+      return;
+    }
+    await run(async () => {
+      await friendAction(supabase!, "request", undefined, token);
+      setInvitation("");
+      await refresh(session);
+      setMessage("友達申請を送りました。相手の承認を待ちましょう。");
     });
   }
   async function saveProfile() {
@@ -257,8 +279,20 @@ export default function App() {
               true,
             )}
             <Text style={styles.text}>
-              アカウント削除と復旧はWeb版の設定画面から行えます。
+              アカウント削除はWeb版の設定画面から行えます。復旧は準備中です。
             </Text>
+            {button(
+              "Webの設定画面を開く",
+              () =>
+                void run(async () => {
+                  const web = process.env.EXPO_PUBLIC_WEB_URL;
+                  if (!web || !web.startsWith("https://"))
+                    throw new Error("web URL required");
+                  const url = new URL("/account", web);
+                  await Linking.openURL(url.toString());
+                }),
+              true,
+            )}
           </>
         ) : (
           <>
@@ -267,6 +301,20 @@ export default function App() {
               招待リンクを送り、相手からの申請を承認します。
             </Text>
             {button("友達を招待する", () => void invite())}
+            <Text style={styles.heading}>招待を受け取る</Text>
+            <Text style={styles.text}>
+              友達からの招待リンクを貼り付けて申請します。
+            </Text>
+            <TextInput
+              accessibilityLabel="招待リンク"
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={invitation}
+              onChangeText={setInvitation}
+              style={styles.input}
+              placeholder="https://.../friends#invite=..."
+            />
+            {button("友達申請を送る", () => void requestFriend(), true)}
             <Text style={styles.heading}>届いた申請</Text>
             {relations.incoming.length === 0 && (
               <Text style={styles.text}>申請はありません。</Text>
