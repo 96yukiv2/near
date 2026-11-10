@@ -13,10 +13,12 @@ export async function friendAction(
   client: SupabaseClient,
   action: string,
   target?: string,
+  token?: string,
 ) {
   const { data, error } = await client.rpc("near_friend_action", {
     action,
     ...(target ? { target } : {}),
+    ...(token ? { token } : {}),
   });
   if (error) throw error;
   return data;
