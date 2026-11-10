@@ -6,3 +6,10 @@ node_modules
 !.env.example
 coverage
 .DS_Store
+
+# Expo generated files and native projects
+.expo/
+apps/mobile/android/
+apps/mobile/ios/
+*.keystore
+*.jks
