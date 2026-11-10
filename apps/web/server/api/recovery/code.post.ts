@@ -48,11 +48,17 @@ export default defineEventHandler(async (event) => {
     attempts: 0,
     lockedUntil: 0,
   });
-  await database.query(
+  const saved = await database.query(
     `insert into near_auth.verification (id, identifier, value, "expiresAt") values ($1, $1, $2, '9999-12-31')
-     on conflict (id) do update set value = excluded.value, "updatedAt" = now()`,
+     on conflict (id) do update set value = excluded.value, "updatedAt" = now()
+     where not (near_auth.verification.value::jsonb ? 'reservedSession')`,
     [identifier, value],
   );
+  if (saved.rowCount !== 1)
+    throw createError({
+      statusCode: 409,
+      statusMessage: "Recovery in progress",
+    });
   setHeader(event, "Cache-Control", "no-store");
   return { code };
 });

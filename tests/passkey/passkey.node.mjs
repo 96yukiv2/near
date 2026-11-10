@@ -31,6 +31,7 @@ before(async () => {
       !!database
         .prepare('SELECT 1 FROM passkey WHERE "userId" = ? LIMIT 1')
         .get(id),
+    hasPendingRecovery: async () => false,
     revokePriorPasskeys: async (id, keepId) => {
       database
         .prepare('DELETE FROM passkey WHERE "userId" = ? AND id <> ?')

@@ -79,6 +79,13 @@ export function getNearAuth(event: H3Event) {
         );
         return result.rowCount === 1;
       },
+      async hasPendingRecovery(userId) {
+        const result = await database.query(
+          `select 1 from near_auth.verification where id = $1 and value::jsonb ? 'reservedSession'`,
+          [RECOVERY_PREFIX + userId],
+        );
+        return result.rowCount !== 0;
+      },
       async revokePriorPasskeys(userId, keepPasskeyId, sessionId) {
         const client = await database.connect();
         try {
