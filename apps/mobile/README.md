@@ -66,5 +66,5 @@ MapLibre やバックグラウンド位置情報は Expo Go では使えない�
 - Web の招待リンクは現在 Web 側で開きます。アプリ内受け取りは未対応です。
 - 位置共有、通知、許可、停止・再起動時の動作は Android 実機・エミュレーターで未確認です。テストアカウントとダミー位置を使ってください。
 - 復旧と削除のアプリ内操作は今後対応します。
-- 地図には OpenStreetMap のベクタータイルを使います。[利用条件](https://operations.osmfoundation.org/policies/vector/)と提供制限を確認してください。
+- 地図には OpenStreetMap の画像タイルを使います。[利用条件](https://operations.osmfoundation.org/policies/tiles/)と提供制限を確認してください。
 - ログアウトはアプリの Supabase セッションを終了します。ブラウザ側の認証セッションは別途残る場合があります。

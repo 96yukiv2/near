@@ -11,7 +11,8 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import type { Session } from "@supabase/supabase-js";
 import { signIn, supabase } from "./lib/supabase";
@@ -170,187 +171,232 @@ export default function App() {
   );
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <StatusBar style="dark" />
-      <View style={styles.header}>
-        <Text style={styles.brand}>near.</Text>
-      </View>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaProvider>
+      <SafeAreaView
+        style={styles.screen}
+        edges={["top", "bottom", "left", "right"]}
       >
-        {!!message && (
-          <Text accessibilityRole="alert" style={styles.notice}>
-            {message}
-          </Text>
-        )}
-        {!ready ? (
-          <ActivityIndicator />
-        ) : !supabase ? (
-          <Text style={styles.text}>
-            接続先を設定してください。設定方法は mobile の README
-            を参照してください。
-          </Text>
-        ) : !session ? (
-          <>
-            <Text style={styles.title}>いつものみんなを、もっと近くに。</Text>
-            <Text style={styles.text}>パスキーを使ってログインします。</Text>
-            {button("パスキーではじめる", () => void run(signIn))}
-          </>
-        ) : tab === "map" ? (
+        <StatusBar style="dark" />
+        <View style={styles.header}>
+          <Text style={styles.brand}>near.</Text>
+        </View>
+        {session && tab === "map" ? (
           <LocationScreen
             key={session.user.id}
             userId={session.user.id}
             onBusyChange={setBusy}
           />
-        ) : tab === "profile" ? (
-          <>
-            <Text style={styles.title}>プロフィール</Text>
-            <Text style={styles.text}>表示名</Text>
-            <TextInput
-              accessibilityLabel="表示名"
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              maxLength={80}
-            />
-            <Text style={styles.text}>アイコン</Text>
-            <View style={styles.icons}>
-              {icons.map((value, i) => (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={value}
-                  accessibilityState={{ selected: icon === value }}
-                  key={value}
-                  onPress={() => setIcon(value)}
-                  style={[styles.icon, icon === value && styles.selected]}
-                >
-                  <Text style={styles.emoji}>{symbols[i]}</Text>
-                </Pressable>
-              ))}
-            </View>
-            {button("保存する", () => void saveProfile())}
-            {button(
-              "ログアウト",
-              () =>
-                Alert.alert(
-                  "ログアウト",
-                  "位置共有を停止してログアウトしますか？",
-                  [
-                    { text: "キャンセル" },
-                    {
-                      text: "ログアウト",
-                      onPress: () =>
-                        void run(async () => {
-                          await stopBackgroundLocation();
-                          const { error: stopError } = await supabase!.rpc(
-                            "near_location_action",
-                            { action: "stop" },
-                          );
-                          if (stopError) throw stopError;
-                          const { error } = await supabase!.auth.signOut();
-                          if (error) throw error;
-                        }),
-                    },
-                  ],
-                ),
-              true,
-            )}
-            <Text style={styles.text}>
-              アカウント削除と復旧はWeb版の設定画面から行えます。
-            </Text>
-          </>
         ) : (
-          <>
-            <Text style={styles.title}>友達とつながろう。</Text>
-            <Text style={styles.text}>
-              招待リンクを送り、相手からの申請を承認します。
-            </Text>
-            {button("友達を招待する", () => void invite())}
-            <Text style={styles.heading}>届いた申請</Text>
-            {relations.incoming.length === 0 && (
-              <Text style={styles.text}>申請はありません。</Text>
-            )}
-            {relations.incoming.map((item) => (
-              <View key={item.id} style={styles.row}>
-                <Text style={styles.text}>{item.name}</Text>
-                {button("承認", () => void act("accept", item.id), true)}
-                {button("断る", () => void act("decline", item.id), true)}
-              </View>
-            ))}
-            <Text style={styles.heading}>友達</Text>
-            {relations.friends.length === 0 && (
-              <Text style={styles.text}>まだ友達はいません。</Text>
-            )}
-            {relations.friends.map((friend) => (
-              <View key={friend.id} style={styles.row}>
-                <Text style={styles.text}>{friend.name}</Text>
-                {button(
-                  "削除",
-                  () =>
-                    Alert.alert(
-                      "友達を削除",
-                      `${friend.name}さんを削除しますか？`,
-                      [
-                        { text: "キャンセル" },
-                        {
-                          text: "削除",
-                          style: "destructive",
-                          onPress: () => void act("remove", friend.id),
-                        },
-                      ],
-                    ),
-                  true,
-                )}
-                {button(
-                  "ブロック",
-                  () =>
-                    Alert.alert(
-                      "ブロック",
-                      `${friend.name}さんをブロックしますか？`,
-                      [
-                        { text: "キャンセル" },
-                        {
-                          text: "ブロック",
-                          style: "destructive",
-                          onPress: () => void act("block", friend.id),
-                        },
-                      ],
-                    ),
-                  true,
-                )}
-              </View>
-            ))}
-            <Text style={styles.heading}>承認待ち</Text>
-            {relations.outgoing.length === 0 && (
-              <Text style={styles.text}>承認待ちの申請はありません。</Text>
-            )}
-            {relations.outgoing.map((item) => (
-              <Text key={item.id} style={styles.text}>
-                {item.name}
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+          >
+            {!!message && (
+              <Text accessibilityRole="alert" style={styles.notice}>
+                {message}
               </Text>
-            ))}
-            <Text style={styles.heading}>ブロック中</Text>
-            {relations.blocked.length === 0 && (
-              <Text style={styles.text}>ブロック中の人はいません。</Text>
             )}
-            {relations.blocked.map((item) => (
-              <View key={item.id} style={styles.row}>
-                <Text style={styles.text}>{item.name}</Text>
-                {button("解除", () => void act("unblock", item.id), true)}
-              </View>
-            ))}
-          </>
+            {!ready ? (
+              <ActivityIndicator />
+            ) : !supabase ? (
+              <Text style={styles.text}>
+                接続先を設定してください。設定方法は mobile の README
+                を参照してください。
+              </Text>
+            ) : !session ? (
+              <>
+                <Text style={styles.title}>
+                  いつものみんなを、もっと近くに。
+                </Text>
+                <Text style={styles.text}>
+                  パスキーを使ってログインします。
+                </Text>
+                {button("パスキーではじめる", () => void run(signIn))}
+              </>
+            ) : tab === "profile" ? (
+              <>
+                <Text style={styles.title}>プロフィール</Text>
+                <Text style={styles.text}>表示名</Text>
+                <TextInput
+                  accessibilityLabel="表示名"
+                  style={styles.input}
+                  value={name}
+                  onChangeText={setName}
+                  maxLength={80}
+                />
+                <Text style={styles.text}>アイコン</Text>
+                <View style={styles.icons}>
+                  {icons.map((value, i) => (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={value}
+                      accessibilityState={{ selected: icon === value }}
+                      key={value}
+                      onPress={() => setIcon(value)}
+                      style={[styles.icon, icon === value && styles.selected]}
+                    >
+                      <Text style={styles.emoji}>{symbols[i]}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                {button("保存する", () => void saveProfile())}
+                {button(
+                  "ログアウト",
+                  () =>
+                    Alert.alert(
+                      "ログアウト",
+                      "位置共有を停止してログアウトしますか？",
+                      [
+                        { text: "キャンセル" },
+                        {
+                          text: "ログアウト",
+                          onPress: () =>
+                            void run(async () => {
+                              await stopBackgroundLocation();
+                              const { error: stopError } = await supabase!.rpc(
+                                "near_location_action",
+                                { action: "stop" },
+                              );
+                              if (stopError) throw stopError;
+                              const { error } = await supabase!.auth.signOut();
+                              if (error) throw error;
+                            }),
+                        },
+                      ],
+                    ),
+                  true,
+                )}
+                <Text style={styles.text}>
+                  アカウント削除と復旧はWeb版の設定画面から行えます。
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.title}>友達とつながろう。</Text>
+                <Text style={styles.text}>
+                  招待リンクを送り、相手からの申請を承認します。
+                </Text>
+                {button("友達を招待する", () => void invite())}
+                <Text style={styles.heading}>届いた申請</Text>
+                {relations.incoming.length === 0 && (
+                  <Text style={styles.text}>申請はありません。</Text>
+                )}
+                {relations.incoming.map((item) => (
+                  <View key={item.id} style={styles.row}>
+                    <Text style={[styles.text, styles.personName]}>
+                      {item.name}
+                    </Text>
+                    {button("承認", () => void act("accept", item.id), true)}
+                    {button("断る", () => void act("decline", item.id), true)}
+                  </View>
+                ))}
+                <Text style={styles.heading}>友達</Text>
+                {relations.friends.length === 0 && (
+                  <Text style={styles.text}>まだ友達はいません。</Text>
+                )}
+                {relations.friends.map((friend) => (
+                  <View key={friend.id} style={styles.row}>
+                    <Text style={[styles.text, styles.personName]}>
+                      {friend.name}
+                    </Text>
+                    {button(
+                      "削除",
+                      () =>
+                        Alert.alert(
+                          "友達を削除",
+                          `${friend.name}さんを削除しますか？`,
+                          [
+                            { text: "キャンセル" },
+                            {
+                              text: "削除",
+                              style: "destructive",
+                              onPress: () => void act("remove", friend.id),
+                            },
+                          ],
+                        ),
+                      true,
+                    )}
+                    {button(
+                      "ブロック",
+                      () =>
+                        Alert.alert(
+                          "ブロック",
+                          `${friend.name}さんをブロックしますか？`,
+                          [
+                            { text: "キャンセル" },
+                            {
+                              text: "ブロック",
+                              style: "destructive",
+                              onPress: () => void act("block", friend.id),
+                            },
+                          ],
+                        ),
+                      true,
+                    )}
+                  </View>
+                ))}
+                <Text style={styles.heading}>承認待ち</Text>
+                {relations.outgoing.length === 0 && (
+                  <Text style={styles.text}>承認待ちの申請はありません。</Text>
+                )}
+                {relations.outgoing.map((item) => (
+                  <Text key={item.id} style={styles.text}>
+                    {item.name}
+                  </Text>
+                ))}
+                <Text style={styles.heading}>ブロック中</Text>
+                {relations.blocked.length === 0 && (
+                  <Text style={styles.text}>ブロック中の人はいません。</Text>
+                )}
+                {relations.blocked.map((item) => (
+                  <View key={item.id} style={styles.row}>
+                    <Text style={[styles.text, styles.personName]}>
+                      {item.name}
+                    </Text>
+                    {button("解除", () => void act("unblock", item.id), true)}
+                  </View>
+                ))}
+              </>
+            )}
+          </ScrollView>
         )}
-      </ScrollView>
-      {session && (
-        <View style={styles.nav}>
-          {button("地図", () => setTab("map"), tab !== "map")}
-          {button("友達", () => setTab("friends"), tab !== "friends")}
-          {button("設定", () => setTab("profile"), tab !== "profile")}
-        </View>
-      )}
-    </SafeAreaView>
+        {session && (
+          <View style={styles.nav}>
+            {(
+              [
+                ["map", "map-outline", "地図"],
+                ["friends", "people-outline", "友達"],
+                ["profile", "person-circle-outline", "設定"],
+              ] as const
+            ).map(([key, iconName, label]) => (
+              <Pressable
+                key={key}
+                accessibilityRole="tab"
+                accessibilityLabel={label}
+                accessibilityState={{ selected: tab === key, disabled: busy }}
+                disabled={busy}
+                onPress={() => setTab(key)}
+                style={[styles.navItem, tab === key && styles.navActive]}
+              >
+                <Ionicons
+                  name={iconName}
+                  size={23}
+                  color={tab === key ? "#d15c4a" : "#8a8c99"}
+                />
+                <Text
+                  style={[
+                    styles.navLabel,
+                    tab === key && styles.navLabelActive,
+                  ]}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
@@ -395,10 +441,30 @@ const styles = StyleSheet.create({
   selected: { borderColor: "#e76a53" },
   emoji: { fontSize: 26 },
   row: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
+  personName: {
+    flexGrow: 1,
+    flexBasis: "100%",
+    fontWeight: "700",
+    color: "#343744",
+  },
   nav: {
     flexDirection: "row",
     justifyContent: "space-around",
-    padding: 12,
-    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    backgroundColor: "#fffdf9",
+    borderTopWidth: 1,
+    borderTopColor: "#f0e7dc",
   },
+  navItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    paddingVertical: 6,
+    borderRadius: 18,
+  },
+  navActive: { backgroundColor: "#ffede5" },
+  navLabel: { fontSize: 11, fontWeight: "600", color: "#8a8c99" },
+  navLabelActive: { color: "#bc5648" },
 });
