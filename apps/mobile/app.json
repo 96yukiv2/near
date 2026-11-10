@@ -8,6 +8,16 @@
     "userInterfaceStyle": "light",
     "android": {
       "package": "app.near.mobile"
-    }
+    },
+    "plugins": [
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-location",
+        {
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
+    ]
   }
 }

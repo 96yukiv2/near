@@ -16,6 +16,8 @@ import { StatusBar } from "expo-status-bar";
 import type { Session } from "@supabase/supabase-js";
 import { signIn, supabase } from "./lib/supabase";
 import { friendAction, type Relationships } from "./features/friends";
+import { LocationScreen } from "./features/LocationScreen";
+import { stopBackgroundLocation } from "./features/location-task";
 
 const empty: Relationships = {
   friends: [],
@@ -34,13 +36,13 @@ const icons = [
   "star",
 ] as const;
 const symbols = ["☀️", "🌙", "🌼", "🐱", "🐶", "🐸", "🐻", "⭐"];
-type Tab = "friends" | "profile";
+type Tab = "map" | "friends" | "profile";
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<Tab>("friends");
+  const [tab, setTab] = useState<Tab>("map");
   const [relations, setRelations] = useState<Relationships>(empty);
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<string>("sun");
@@ -83,6 +85,7 @@ export default function App() {
           0,
         );
       else {
+        void stopBackgroundLocation().catch(() => undefined);
         setRelations(empty);
         setName("");
         setIcon("sun");
@@ -194,6 +197,12 @@ export default function App() {
             <Text style={styles.text}>パスキーを使ってログインします。</Text>
             {button("パスキーではじめる", () => void run(signIn))}
           </>
+        ) : tab === "map" ? (
+          <LocationScreen
+            key={session.user.id}
+            userId={session.user.id}
+            onBusyChange={setBusy}
+          />
         ) : tab === "profile" ? (
           <>
             <Text style={styles.title}>プロフィール</Text>
@@ -224,17 +233,27 @@ export default function App() {
             {button(
               "ログアウト",
               () =>
-                Alert.alert("ログアウト", "この端末からログアウトしますか？", [
-                  { text: "キャンセル" },
-                  {
-                    text: "ログアウト",
-                    onPress: () =>
-                      void run(async () => {
-                        const { error } = await supabase!.auth.signOut();
-                        if (error) throw error;
-                      }),
-                  },
-                ]),
+                Alert.alert(
+                  "ログアウト",
+                  "位置共有を停止してログアウトしますか？",
+                  [
+                    { text: "キャンセル" },
+                    {
+                      text: "ログアウト",
+                      onPress: () =>
+                        void run(async () => {
+                          await stopBackgroundLocation();
+                          const { error: stopError } = await supabase!.rpc(
+                            "near_location_action",
+                            { action: "stop" },
+                          );
+                          if (stopError) throw stopError;
+                          const { error } = await supabase!.auth.signOut();
+                          if (error) throw error;
+                        }),
+                    },
+                  ],
+                ),
               true,
             )}
             <Text style={styles.text}>
@@ -326,6 +345,7 @@ export default function App() {
       </ScrollView>
       {session && (
         <View style={styles.nav}>
+          {button("地図", () => setTab("map"), tab !== "map")}
           {button("友達", () => setTab("friends"), tab !== "friends")}
           {button("設定", () => setTab("profile"), tab !== "profile")}
         </View>
