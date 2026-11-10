@@ -22,6 +22,7 @@ export function createNearAuthOptions(settings: {
   rpID: string;
   origin: string;
   hasPasskey: (userId: string) => Promise<boolean>;
+  hasPendingRecovery: (userId: string) => Promise<boolean>;
   revokePriorPasskeys?: (
     userId: string,
     keepPasskeyId: string,
@@ -59,19 +60,33 @@ export function createNearAuthOptions(settings: {
     databaseHooks: {
       session: {
         create: {
-          before: async (session, ctx) => ({
-            data: {
-              ...session,
-              ipAddress: null,
-              userAgent: null,
-              nearAuthMethod:
-                ctx?.path === "/passkey/verify-authentication"
-                  ? "passkey"
-                  : ctx?.path === "/sign-in/email-otp"
-                    ? "recovery"
-                    : "bootstrap",
-            },
-          }),
+          before: async (session, ctx) => {
+            // A newly registered credential must not authenticate until the
+            // recovery transaction has consumed its reservation and revoked the
+            // old credentials. A failed transaction leaves the reservation in
+            // place, so it fails closed even after the reservation expires.
+            if (
+              ctx?.path === "/passkey/verify-authentication" &&
+              (await settings.hasPendingRecovery(session.userId))
+            ) {
+              throw new APIError("FORBIDDEN", {
+                message: "Recovery must be completed before signing in.",
+              });
+            }
+            return {
+              data: {
+                ...session,
+                ipAddress: null,
+                userAgent: null,
+                nearAuthMethod:
+                  ctx?.path === "/passkey/verify-authentication"
+                    ? "passkey"
+                    : ctx?.path === "/sign-in/email-otp"
+                      ? "recovery"
+                      : "bootstrap",
+              },
+            };
+          },
         },
       },
     },
